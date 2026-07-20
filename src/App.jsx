@@ -1,121 +1,113 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useEffect } from 'react'
+import { supabase } from './supabaseClient'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tasks, setTasks] = useState([])
+  const [newTitle, setNewTitle] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchTasks()
+  }, [])
+
+  async function fetchTasks() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (error) console.error(error)
+    else setTasks(data)
+    setLoading(false)
+  }
+
+  async function addTask(e) {
+    e.preventDefault()
+    const title = newTitle.trim()
+    if (!title) return
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([{ title }])
+      .select()
+    if (error) console.error(error)
+    else setTasks([...tasks, ...data])
+    setNewTitle('')
+  }
+
+  async function toggleTask(task) {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ is_complete: !task.is_complete })
+      .eq('id', task.id)
+    if (error) console.error(error)
+    else
+      setTasks(
+        tasks.map((t) =>
+          t.id === task.id ? { ...t, is_complete: !t.is_complete } : t
+        )
+      )
+  }
+
+  async function deleteTask(id) {
+    const { error } = await supabase.from('tasks').delete().eq('id', id)
+    if (error) console.error(error)
+    else setTasks(tasks.filter((t) => t.id !== id))
+  }
+
+  const remaining = tasks.filter((t) => !t.is_complete).length
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="page">
+      <div className="sheet">
+        <header className="sheet-header">
+          <h1>Today's List</h1>
+          <span className="count">{remaining} open</span>
+        </header>
 
-      <div className="ticks"></div>
+        <form className="add-row" onSubmit={addTask}>
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Add a task..."
+          />
+          <button type="submit">Add</button>
+        </form>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
+        {loading ? (
+          <p className="empty">Loading...</p>
+        ) : tasks.length === 0 ? (
+          <p className="empty">Nothing on the list yet.</p>
+        ) : (
+          <ul className="task-list">
+            {tasks.map((task) => (
+              <li
+                key={task.id}
+                className={task.is_complete ? 'done' : ''}
+              >
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={task.is_complete}
+                    onChange={() => toggleTask(task)}
+                  />
+                  <span className="check-mark" />
+                  <span className="title">{task.title}</span>
+                </label>
+                <button
+                  className="remove"
+                  onClick={() => deleteTask(task.id)}
+                  aria-label="Delete task"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
           </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        )}
+      </div>
+    </div>
   )
 }
 
