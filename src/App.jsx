@@ -22,7 +22,6 @@ function prettyDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
-// stable per-day seed so the timeless pick is fixed for the day, new tomorrow
 function dailySeed() {
   const s = today()
   let h = 0
@@ -47,7 +46,8 @@ const VIEWS = [
 
 function filterForView(tasks, view) {
   const t0 = today()
-  if (view === 'today') return tasks.filter((x) => x.due_date === t0)
+  // Today now includes anything due today OR earlier (overdue carries over)
+  if (view === 'today') return tasks.filter((x) => x.due_date && x.due_date <= t0)
   if (view === 'tomorrow')
     return tasks.filter((x) => x.due_date === shiftDays(t0, 1))
   if (view === 'next7') {
@@ -72,6 +72,7 @@ function sortTasks(list) {
 /* ---------- login ---------- */
 function Login() {
   const [mode, setMode] = useState('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [msg, setMsg] = useState('')
@@ -81,14 +82,29 @@ function Login() {
     e.preventDefault()
     setBusy(true)
     setMsg('')
+    const mail = email.trim().toLowerCase()
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: mail,
+        password,
+      })
       if (error) setMsg(error.message)
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email: mail,
+        password,
+        options: { data: { name: name.trim() } },
+      })
       if (error) setMsg(error.message)
-      else if (!data.session)
+      else if (data.session && data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: mail,
+          name: name.trim(),
+        })
+      } else if (!data.session) {
         setMsg('Account made. Check your email to confirm, then log in.')
+      }
     }
     setBusy(false)
   }
@@ -102,6 +118,18 @@ function Login() {
         <p className="auth-tag">Get it done, in order.</p>
 
         <form onSubmit={submit} className="auth-form">
+          {mode === 'signup' && (
+            <label>
+              Name
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Your name"
+              />
+            </label>
+          )}
           <label>
             Email
             <input
@@ -125,7 +153,7 @@ function Login() {
           </label>
           {msg && <p className="auth-msg">{msg}</p>}
           <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? '…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {busy ? '...' : mode === 'login' ? 'Log in' : 'Create account'}
           </button>
         </form>
 
@@ -136,9 +164,7 @@ function Login() {
             setMsg('')
           }}
         >
-          {mode === 'login'
-            ? 'No account? Create one'
-            : 'Have an account? Log in'}
+          {mode === 'login' ? 'No account? Create one' : 'Have an account? Log in'}
         </button>
       </div>
     </div>
@@ -146,9 +172,10 @@ function Login() {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, onAdvance, timeless }) {
+function TaskRow({ task, selected, onSelect, onAdvance, timeless, fromName }) {
   const pClass =
     task.priority === 3 ? 'p-high' : task.priority === 1 ? 'p-low' : 'p-med'
+  const overdue = task.due_date && task.due_date < today()
   return (
     <li className={`task ${pClass} ${selected ? 'is-selected' : ''}`}>
       <span className="spine" aria-hidden="true" />
@@ -166,20 +193,24 @@ function TaskRow({ task, selected, onSelect, onAdvance, timeless }) {
         <span className="task-meta">
           <span className="prio-tag">{priorityLabel(task.priority)}</span>
           {task.due_date && <span className="dot">·</span>}
-          {task.due_date && <span>{prettyDate(task.due_date)}</span>}
+          {task.due_date && (
+            <span className={overdue ? 'overdue' : ''}>
+              {overdue ? 'Overdue · ' : ''}
+              {prettyDate(task.due_date)}
+            </span>
+          )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
+          {fromName && <span className="from-tag">from {fromName}</span>}
           {task.recurring_interval_days && <span className="dot">·</span>}
           {task.recurring_interval_days && (
-            <span className="repeat-tag">
-              every {task.recurring_interval_days}d
-            </span>
+            <span className="repeat-tag">every {task.recurring_interval_days}d</span>
           )}
         </span>
       </div>
       {task.recurring_interval_days && (
         <button
           className="advance"
-          title="Done — schedule next"
+          title="Done - schedule next"
           onClick={() => onAdvance(task)}
         >
           ↻
@@ -190,14 +221,17 @@ function TaskRow({ task, selected, onSelect, onAdvance, timeless }) {
 }
 
 /* ---------- add task ---------- */
-function AddTask({ onDone, onCancel }) {
+function AddTask({ onDone, onCancel, people, myId }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [priority, setPriority] = useState(2)
   const [recurring, setRecurring] = useState(false)
   const [interval, setIntervalDays] = useState(7)
+  const [assignee, setAssignee] = useState(myId)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+
+  const showAssign = people && people.length > 1
 
   async function save(e) {
     e.preventDefault()
@@ -212,6 +246,7 @@ function AddTask({ onDone, onCancel }) {
         due_date: due,
         priority,
         recurring_interval_days: recurring ? Number(interval) : null,
+        user_id: assignee,
       },
     ])
     setBusy(false)
@@ -241,6 +276,19 @@ function AddTask({ onDone, onCancel }) {
           />
         </label>
 
+        {showAssign && (
+          <label>
+            Task for
+            <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id === myId ? `${p.name || 'Me'} (me)` : p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <label>
           Date
           <input
@@ -249,7 +297,7 @@ function AddTask({ onDone, onCancel }) {
             onChange={(e) => setDate(e.target.value)}
           />
           <span className="hint">
-            Leave empty for a timeless task — no deadline, surfaced over time.
+            Leave empty for a timeless task - no deadline, surfaced over time.
           </span>
         </label>
 
@@ -299,7 +347,7 @@ function AddTask({ onDone, onCancel }) {
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Add task'}
+            {busy ? 'Saving...' : 'Add task'}
           </button>
         </div>
       </form>
@@ -308,7 +356,7 @@ function AddTask({ onDone, onCancel }) {
 }
 
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh }) {
+function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
@@ -337,6 +385,8 @@ function Tdl({ tasks, loading, refresh }) {
   if (adding)
     return (
       <AddTask
+        people={people}
+        myId={myId}
         onCancel={() => setAdding(false)}
         onDone={() => {
           setAdding(false)
@@ -347,7 +397,6 @@ function Tdl({ tasks, loading, refresh }) {
 
   let visible = sortTasks(filterForView(tasks, view))
 
-  // one random timeless task, surfaced only on Today, fixed for the day
   let timelessPick = null
   if (view === 'today') {
     const timeless = tasks.filter((t) => !t.due_date)
@@ -373,7 +422,7 @@ function Tdl({ tasks, loading, refresh }) {
       </div>
 
       {loading ? (
-        <p className="empty">Loading…</p>
+        <p className="empty">Loading...</p>
       ) : visible.length === 0 ? (
         <p className="empty">Nothing here. Add something with the + button.</p>
       ) : (
@@ -386,6 +435,9 @@ function Tdl({ tasks, loading, refresh }) {
               onSelect={toggleSelect}
               onAdvance={advance}
               timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
+              fromName={
+                t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
+              }
             />
           ))}
         </ul>
@@ -406,16 +458,163 @@ function Tdl({ tasks, loading, refresh }) {
 }
 
 /* ---------- setup screen ---------- */
-function Setup({ email }) {
+function Setup({ profile, groups, members, invites, myId, refresh }) {
+  const [nameInput, setNameInput] = useState(profile?.name || '')
+  const [savingName, setSavingName] = useState(false)
+  const [newGroup, setNewGroup] = useState('')
+  const [inviteEmail, setInviteEmail] = useState({})
+  const [note, setNote] = useState('')
+
+  async function saveName() {
+    setSavingName(true)
+    await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
+    setSavingName(false)
+    refresh()
+  }
+
+  async function createGroup(e) {
+    e.preventDefault()
+    const gname = newGroup.trim()
+    if (!gname) return
+    const { data, error } = await supabase
+      .from('groups')
+      .insert([{ name: gname }])
+      .select()
+    if (!error && data && data[0]) {
+      await supabase
+        .from('group_members')
+        .insert([{ group_id: data[0].id, user_id: myId }])
+    }
+    setNewGroup('')
+    refresh()
+  }
+
+  async function sendInvite(group) {
+    const mail = (inviteEmail[group.id] || '').trim().toLowerCase()
+    if (!mail) return
+    const { error } = await supabase.from('group_invites').insert([
+      { group_id: group.id, group_name: group.name, invited_email: mail },
+    ])
+    setInviteEmail({ ...inviteEmail, [group.id]: '' })
+    setNote(error ? error.message : `Invite sent to ${mail}`)
+    setTimeout(() => setNote(''), 2500)
+  }
+
+  async function acceptInvite(inv) {
+    await supabase
+      .from('group_members')
+      .insert([{ group_id: inv.group_id, user_id: myId }])
+    await supabase
+      .from('group_invites')
+      .update({ status: 'accepted' })
+      .eq('id', inv.id)
+    refresh()
+  }
+
+  async function declineInvite(inv) {
+    await supabase
+      .from('group_invites')
+      .update({ status: 'declined' })
+      .eq('id', inv.id)
+    refresh()
+  }
+
+  const membersOf = (gid) => members.filter((m) => m.group_id === gid)
+
   return (
     <div className="setup">
       <h2>Setup</h2>
-      <div className="setup-card">
-        <span className="setup-label">Signed in as</span>
-        <span className="setup-value">{email}</span>
-      </div>
-      <p className="setup-note">More options coming soon.</p>
-      <button className="btn-outline" onClick={() => supabase.auth.signOut()}>
+
+      <section className="setup-section">
+        <span className="section-title">Your name</span>
+        <div className="name-row">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+          />
+          <button className="btn-primary" onClick={saveName} disabled={savingName}>
+            {savingName ? '...' : 'Save'}
+          </button>
+        </div>
+      </section>
+
+      {invites.length > 0 && (
+        <section className="setup-section">
+          <span className="section-title">Invites</span>
+          {invites.map((inv) => (
+            <div key={inv.id} className="invite-card">
+              <span>
+                Join <strong>{inv.group_name}</strong>
+              </span>
+              <div className="invite-actions">
+                <button className="btn-primary" onClick={() => acceptInvite(inv)}>
+                  Accept
+                </button>
+                <button className="btn-outline" onClick={() => declineInvite(inv)}>
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="setup-section">
+        <span className="section-title">Groups</span>
+        {groups.length === 0 && (
+          <p className="setup-note">No groups yet. Create one below.</p>
+        )}
+        {groups.map((g) => {
+          const owner = g.owner_id === myId
+          return (
+            <div key={g.id} className="group-card">
+              <div className="group-head">
+                <strong>{g.name}</strong>
+                {owner && <span className="owner-tag">owner</span>}
+              </div>
+              <div className="member-chips">
+                {membersOf(g.id).map((m) => (
+                  <span key={m.user_id} className="chip">
+                    {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
+                  </span>
+                ))}
+              </div>
+              {owner && (
+                <div className="invite-row">
+                  <input
+                    type="email"
+                    placeholder="Invite by email"
+                    value={inviteEmail[g.id] || ''}
+                    onChange={(e) =>
+                      setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
+                    }
+                  />
+                  <button className="btn-outline" onClick={() => sendInvite(g)}>
+                    Invite
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        <form onSubmit={createGroup} className="new-group-row">
+          <input
+            type="text"
+            placeholder="New group name"
+            value={newGroup}
+            onChange={(e) => setNewGroup(e.target.value)}
+          />
+          <button type="submit" className="btn-primary">
+            Create
+          </button>
+        </form>
+        {note && <p className="setup-note">{note}</p>}
+      </section>
+
+      <button className="btn-outline signout" onClick={() => supabase.auth.signOut()}>
         Sign out
       </button>
     </div>
@@ -426,18 +625,78 @@ function Setup({ email }) {
 function Shell({ session }) {
   const [screen, setScreen] = useState('tdl')
   const [tasks, setTasks] = useState([])
+  const [profile, setProfile] = useState(null)
+  const [groups, setGroups] = useState([])
+  const [members, setMembers] = useState([])
+  const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const myId = session.user.id
+  const myEmail = (session.user.email || '').toLowerCase()
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('tasks').select('*')
-    if (!error) setTasks(data || [])
+
+    // ensure a profile row exists
+    let { data: prof } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', myId)
+      .maybeSingle()
+    if (!prof) {
+      const meta = session.user.user_metadata || {}
+      await supabase
+        .from('profiles')
+        .upsert({ id: myId, email: myEmail, name: meta.name || '' })
+      const r = await supabase.from('profiles').select('*').eq('id', myId).maybeSingle()
+      prof = r.data
+    }
+    setProfile(prof)
+
+    const { data: taskData } = await supabase.from('tasks').select('*')
+    setTasks(taskData || [])
+
+    const { data: groupData } = await supabase.from('groups').select('*')
+    setGroups(groupData || [])
+
+    const { data: memberData } = await supabase.from('group_members').select('*')
+    const memberIds = [...new Set((memberData || []).map((m) => m.user_id))]
+    let profMap = {}
+    if (memberIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id,name,email')
+        .in('id', memberIds)
+      ;(profs || []).forEach((p) => (profMap[p.id] = p))
+    }
+    const membersWithNames = (memberData || []).map((m) => ({
+      ...m,
+      name: profMap[m.user_id]?.name,
+    }))
+    setMembers(membersWithNames)
+
+    const { data: inviteData } = await supabase
+      .from('group_invites')
+      .select('*')
+      .eq('status', 'pending')
+    setInvites((inviteData || []).filter((i) => i.invited_email === myEmail))
+
     setLoading(false)
-  }, [])
+  }, [myId, myEmail, session])
 
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  // people for "Task for": me + unique groupmates
+  const peopleMap = {}
+  peopleMap[myId] = { id: myId, name: profile?.name || 'Me' }
+  members.forEach((m) => {
+    if (!peopleMap[m.user_id])
+      peopleMap[m.user_id] = { id: m.user_id, name: m.name || 'Member' }
+  })
+  const people = Object.values(peopleMap)
+  const nameFor = (id) => peopleMap[id]?.name || 'someone'
 
   return (
     <div className="app">
@@ -463,9 +722,23 @@ function Shell({ session }) {
 
       <main>
         {screen === 'tdl' ? (
-          <Tdl tasks={tasks} loading={loading} refresh={refresh} />
+          <Tdl
+            tasks={tasks}
+            loading={loading}
+            refresh={refresh}
+            people={people}
+            myId={myId}
+            nameFor={nameFor}
+          />
         ) : (
-          <Setup email={session.user.email} />
+          <Setup
+            profile={profile}
+            groups={groups}
+            members={members}
+            invites={invites}
+            myId={myId}
+            refresh={refresh}
+          />
         )}
       </main>
     </div>

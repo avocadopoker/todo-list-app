@@ -379,3 +379,101 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ---------- select ---------- */
+select {
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238a8285' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px var(--red-tint); }
+
+/* ---------- from / overdue tags ---------- */
+.from-tag {
+  background: var(--ink);
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+.overdue { color: var(--red-press); font-weight: 600; }
+
+/* ---------- setup sections ---------- */
+.setup h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin: 0 0 22px; }
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+.section-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.setup-note { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+.name-row, .invite-row, .new-group-row, .invite-actions {
+  display: flex;
+  gap: 10px;
+}
+.name-row input, .new-group-row input, .invite-row input { flex: 1; }
+.name-row .btn-primary, .new-group-row .btn-primary { flex-shrink: 0; }
+
+.group-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.group-head { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
+.owner-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--red-press);
+  background: var(--red-tint);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--red-faint);
+  border: 1px solid var(--red-tint);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 0.95rem;
+}
+.invite-actions { flex-shrink: 0; }
+.invite-actions .btn-primary, .invite-actions .btn-outline { padding: 8px 14px; font-size: 0.85rem; }
+
+.signout { margin-top: 8px; }
