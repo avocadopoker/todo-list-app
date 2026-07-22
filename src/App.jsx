@@ -83,6 +83,14 @@ function Login() {
     setBusy(true)
     setMsg('')
     const mail = email.trim().toLowerCase()
+    if (mode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(mail, {
+        redirectTo: window.location.origin,
+      })
+      setMsg(error ? error.message : 'Reset link sent. Check your email.')
+      setBusy(false)
+      return
+    }
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({
         email: mail,
@@ -140,23 +148,44 @@ function Login() {
               autoComplete="email"
             />
           </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={6}
-            />
-          </label>
+          {mode !== 'reset' && (
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete={
+                  mode === 'login' ? 'current-password' : 'new-password'
+                }
+                minLength={6}
+              />
+            </label>
+          )}
           {msg && <p className="auth-msg">{msg}</p>}
           <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? '...' : mode === 'login' ? 'Log in' : 'Create account'}
+            {busy
+              ? '...'
+              : mode === 'login'
+              ? 'Log in'
+              : mode === 'signup'
+              ? 'Create account'
+              : 'Send reset link'}
           </button>
         </form>
 
+        {mode === 'login' && (
+          <button
+            className="auth-switch"
+            onClick={() => {
+              setMode('reset')
+              setMsg('')
+            }}
+          >
+            Forgot password?
+          </button>
+        )}
         <button
           className="auth-switch"
           onClick={() => {
@@ -164,8 +193,58 @@ function Login() {
             setMsg('')
           }}
         >
-          {mode === 'login' ? 'No account? Create one' : 'Have an account? Log in'}
+          {mode === 'login'
+            ? 'No account? Create one'
+            : mode === 'signup'
+            ? 'Have an account? Log in'
+            : 'Back to log in'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- set new password (after reset link) ---------- */
+function ResetPassword({ onDone }) {
+  const [password, setPassword] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    setMsg('')
+    const { error } = await supabase.auth.updateUser({ password })
+    setBusy(false)
+    if (error) setMsg(error.message)
+    else onDone()
+  }
+
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="brand">
+          <span className="brand-mark">/</span>list
+        </div>
+        <p className="auth-tag">Choose a new password.</p>
+        <form onSubmit={submit} className="auth-form">
+          <label>
+            New password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              autoFocus
+            />
+          </label>
+          {msg && <p className="auth-msg">{msg}</p>}
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? '...' : 'Update password'}
+          </button>
+        </form>
       </div>
     </div>
   )
@@ -749,19 +828,22 @@ function Shell({ session }) {
 export default function App() {
   const [session, setSession] = useState(null)
   const [ready, setReady] = useState(false)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setReady(true)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       setSession(s)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
 
   if (!ready) return null
+  if (recovery) return <ResetPassword onDone={() => setRecovery(false)} />
   if (!session) return <Login />
   return <Shell session={session} />
 }
