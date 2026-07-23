@@ -14,7 +14,7 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
     scripts:
@@ -71,3 +71,4 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+
