@@ -7,10 +7,8 @@ workflows:
       app_store_connect: Codemagic
     environment:
       groups:
+        - iOS_signing_tdl
         - supabase_tdl
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.avocadopoker.tdl
       vars:
         BUNDLE_ID: "com.avocadopoker.tdl"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
@@ -38,8 +36,17 @@ workflows:
             echo "No Podfile - project uses Swift Package Manager, skipping"
           fi
 
-      - name: Set up provisioning profiles
-        script: xcode-project use-profiles
+      - name: Set up code signing from stored certificate and profile
+        script: |
+          keychain initialize
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates \
+            --certificate /tmp/certificate.p12 \
+            --certificate-password $CM_CERTIFICATE_PASSWORD
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo $CM_PROVISIONING_PROFILE | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/tdl.mobileprovision
+          xcode-project use-profiles
 
       - name: Set build number
         script: |
