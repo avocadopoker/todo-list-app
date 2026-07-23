@@ -206,9 +206,8 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
   left: 0; top: 0; bottom: 0;
   width: 5px;
 }
-.p-high .spine { background: var(--red); }
-.p-med .spine { background: #f4a49f; }
-.p-low .spine { background: var(--red-tint); }
+.task .spine { background: var(--red); }
+.task.idea .spine { background: #f4a49f; }
 
 .task.is-selected { border-color: var(--red); background: var(--red-faint); }
 
@@ -237,8 +236,6 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
   color: var(--muted);
   flex-wrap: wrap;
 }
-.prio-tag { font-weight: 600; color: var(--ink); }
-.p-high .prio-tag { color: var(--red); }
 .dot { color: #d8cfce; }
 .timeless-tag,
 .repeat-tag {
@@ -251,17 +248,6 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
 }
 .repeat-tag { background: var(--surface); color: var(--muted); }
 
-.advance {
-  flex-shrink: 0;
-  width: 34px; height: 34px;
-  border: 1.5px solid var(--line);
-  background: var(--paper);
-  border-radius: 50%;
-  font-size: 1rem;
-  color: var(--red);
-  transition: background 0.15s ease, transform 0.2s ease;
-}
-.advance:hover { background: var(--red-tint); transform: rotate(90deg); }
 
 /* ---------- fab ---------- */
 .fab {
@@ -477,3 +463,14 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .invite-actions .btn-primary, .invite-actions .btn-outline { padding: 8px 14px; font-size: 0.85rem; }
 
 .signout { margin-top: 8px; }
+
+/* ---------- ideas ---------- */
+.group-tag {
+  background: var(--red-tint);
+  color: var(--red-press);
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+.task.idea .task-meta:empty { display: none; }

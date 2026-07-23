@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import './App.css'
 
-/* ---------- date + helpers ---------- */
+/* ---------- date helpers ---------- */
 function ymd(d) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -14,6 +14,32 @@ function shiftDays(baseYmd, n) {
   const d = new Date(baseYmd + 'T00:00:00')
   d.setDate(d.getDate() + n)
   return ymd(d)
+}
+function daysInMonth(year, monthIdx) {
+  return new Date(year, monthIdx + 1, 0).getDate()
+}
+// next occurrence for weekly / monthly / yearly.
+// anchorDay is the ORIGINAL day-of-month so a Jan 31 series clamps to Feb 28
+// but snaps back to Mar 31 instead of drifting to the 28th forever.
+function nextOccurrence(dateStr, type, anchorDay) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const anchor = anchorDay || d.getDate()
+  if (type === 'weekly') return shiftDays(dateStr, 7)
+  if (type === 'monthly') {
+    let y = d.getFullYear()
+    let m = d.getMonth() + 1
+    if (m > 11) {
+      m = 0
+      y += 1
+    }
+    return ymd(new Date(y, m, Math.min(anchor, daysInMonth(y, m))))
+  }
+  if (type === 'yearly') {
+    const m = d.getMonth()
+    const y = d.getFullYear() + 1
+    return ymd(new Date(y, m, Math.min(anchor, daysInMonth(y, m))))
+  }
+  return dateStr
 }
 function prettyDate(dateStr) {
   const t0 = today()
@@ -29,13 +55,12 @@ function dailySeed() {
   return h
 }
 
-const PRIORITIES = [
-  { value: 3, label: 'High' },
-  { value: 2, label: 'Medium' },
-  { value: 1, label: 'Low' },
+const REPEATS = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
 ]
-const priorityLabel = (v) =>
-  (PRIORITIES.find((p) => p.value === v) || PRIORITIES[1]).label
+const repeatLabel = (v) => (REPEATS.find((r) => r.value === v) || {}).label || ''
 
 const VIEWS = [
   { key: 'today', label: 'Today' },
@@ -46,7 +71,6 @@ const VIEWS = [
 
 function filterForView(tasks, view) {
   const t0 = today()
-  // Today now includes anything due today OR earlier (overdue carries over)
   if (view === 'today') return tasks.filter((x) => x.due_date && x.due_date <= t0)
   if (view === 'tomorrow')
     return tasks.filter((x) => x.due_date === shiftDays(t0, 1))
@@ -62,7 +86,6 @@ function filterForView(tasks, view) {
 }
 function sortTasks(list) {
   return [...list].sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority
     if ((a.due_date || '') !== (b.due_date || ''))
       return (a.due_date || '').localeCompare(b.due_date || '')
     return (a.created_at || '').localeCompare(b.created_at || '')
@@ -204,7 +227,7 @@ function Login() {
   )
 }
 
-/* ---------- set new password (after reset link) ---------- */
+/* ---------- set new password ---------- */
 function ResetPassword({ onDone }) {
   const [password, setPassword] = useState('')
   const [msg, setMsg] = useState('')
@@ -251,12 +274,10 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, onAdvance, timeless, fromName }) {
-  const pClass =
-    task.priority === 3 ? 'p-high' : task.priority === 1 ? 'p-low' : 'p-med'
+function TaskRow({ task, selected, onSelect, timeless, fromName }) {
   const overdue = task.due_date && task.due_date < today()
   return (
-    <li className={`task ${pClass} ${selected ? 'is-selected' : ''}`}>
+    <li className={`task ${selected ? 'is-selected' : ''}`}>
       <span className="spine" aria-hidden="true" />
       <label className="task-check">
         <input
@@ -270,8 +291,6 @@ function TaskRow({ task, selected, onSelect, onAdvance, timeless, fromName }) {
       <div className="task-body">
         <span className="task-title">{task.title}</span>
         <span className="task-meta">
-          <span className="prio-tag">{priorityLabel(task.priority)}</span>
-          {task.due_date && <span className="dot">·</span>}
           {task.due_date && (
             <span className={overdue ? 'overdue' : ''}>
               {overdue ? 'Overdue · ' : ''}
@@ -280,21 +299,11 @@ function TaskRow({ task, selected, onSelect, onAdvance, timeless, fromName }) {
           )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
           {fromName && <span className="from-tag">from {fromName}</span>}
-          {task.recurring_interval_days && <span className="dot">·</span>}
-          {task.recurring_interval_days && (
-            <span className="repeat-tag">every {task.recurring_interval_days}d</span>
+          {task.repeat_type && (
+            <span className="repeat-tag">{repeatLabel(task.repeat_type)}</span>
           )}
         </span>
       </div>
-      {task.recurring_interval_days && (
-        <button
-          className="advance"
-          title="Done - schedule next"
-          onClick={() => onAdvance(task)}
-        >
-          ↻
-        </button>
-      )}
     </li>
   )
 }
@@ -303,9 +312,8 @@ function TaskRow({ task, selected, onSelect, onAdvance, timeless, fromName }) {
 function AddTask({ onDone, onCancel, people, myId }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
-  const [priority, setPriority] = useState(2)
   const [recurring, setRecurring] = useState(false)
-  const [interval, setIntervalDays] = useState(7)
+  const [repeatType, setRepeatType] = useState('weekly')
   const [assignee, setAssignee] = useState(myId)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -323,8 +331,8 @@ function AddTask({ onDone, onCancel, people, myId }) {
       {
         title: name,
         due_date: due,
-        priority,
-        recurring_interval_days: recurring ? Number(interval) : null,
+        repeat_type: recurring ? repeatType : null,
+        repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
         user_id: assignee,
       },
     ])
@@ -381,22 +389,6 @@ function AddTask({ onDone, onCancel, people, myId }) {
         </label>
 
         <div className="field">
-          <span className="field-label">Priority</span>
-          <div className="prio-picker">
-            {PRIORITIES.map((p) => (
-              <button
-                type="button"
-                key={p.value}
-                className={priority === p.value ? 'active' : ''}
-                onClick={() => setPriority(p.value)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="field">
           <label className="switch-row">
             <input
               type="checkbox"
@@ -406,16 +398,26 @@ function AddTask({ onDone, onCancel, people, myId }) {
             <span>Recurring</span>
           </label>
           {recurring && (
-            <div className="interval-row">
-              Repeat every
-              <input
-                type="number"
-                min="1"
-                value={interval}
-                onChange={(e) => setIntervalDays(e.target.value)}
-              />
-              days
-            </div>
+            <>
+              <div className="prio-picker">
+                {REPEATS.map((r) => (
+                  <button
+                    type="button"
+                    key={r.value}
+                    className={repeatType === r.value ? 'active' : ''}
+                    onClick={() => setRepeatType(r.value)}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <span className="hint">
+                {repeatType === 'weekly' && 'Repeats on the same weekday.'}
+                {repeatType === 'monthly' &&
+                  'Repeats on the same date each month. Short months fall back to the last day.'}
+                {repeatType === 'yearly' && 'Repeats on the same date each year.'}
+              </span>
+            </>
           )}
         </div>
 
@@ -447,12 +449,6 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
       else next.add(id)
       return next
     })
-  }
-
-  async function advance(task) {
-    const next = shiftDays(task.due_date || today(), task.recurring_interval_days)
-    await supabase.from('tasks').update({ due_date: next }).eq('id', task.id)
-    refresh()
   }
 
   async function deleteSelected() {
@@ -512,7 +508,6 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
               task={t}
               selected={selected.has(t.id)}
               onSelect={toggleSelect}
-              onAdvance={advance}
               timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
               fromName={
                 t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
@@ -523,6 +518,161 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
       )}
 
       <button className="fab" onClick={() => setAdding(true)} aria-label="Add task">
+        +
+      </button>
+
+      {selected.size > 0 && (
+        <div className="delete-bar">
+          <span>{selected.size} selected</span>
+          <button onClick={deleteSelected}>Delete selected</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------- ideas screen ---------- */
+function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
+  const [adding, setAdding] = useState(false)
+  const [text, setText] = useState('')
+  const [target, setTarget] = useState('me')
+  const [selected, setSelected] = useState(new Set())
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function save(e) {
+    e.preventDefault()
+    const body = text.trim()
+    if (!body) return
+    setBusy(true)
+    setErr('')
+    const { error } = await supabase.from('ideas').insert([
+      {
+        title: body,
+        group_id: target === 'me' ? null : target,
+        user_id: myId,
+      },
+    ])
+    setBusy(false)
+    if (error) setErr(error.message)
+    else {
+      setText('')
+      setTarget('me')
+      setAdding(false)
+      refresh()
+    }
+  }
+
+  async function deleteSelected() {
+    await supabase.from('ideas').delete().in('id', [...selected])
+    setSelected(new Set())
+    refresh()
+  }
+
+  if (adding)
+    return (
+      <div className="add-screen">
+        <div className="add-head">
+          <button className="ghost" onClick={() => setAdding(false)}>
+            ← Back
+          </button>
+          <h2>New idea</h2>
+        </div>
+        <form onSubmit={save} className="add-form">
+          <label>
+            Idea
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Something you don't want to forget"
+              autoFocus
+              required
+            />
+          </label>
+
+          {groups.length > 0 && (
+            <label>
+              Idea for
+              <select value={target} onChange={(e) => setTarget(e.target.value)}>
+                <option value="me">Just me</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} (shared)
+                  </option>
+                ))}
+              </select>
+              <span className="hint">
+                Group ideas are visible to everyone in that group.
+              </span>
+            </label>
+          )}
+
+          {err && <p className="auth-msg">{err}</p>}
+
+          <div className="add-actions">
+            <button type="button" className="ghost" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={busy}>
+              {busy ? 'Saving...' : 'Add idea'}
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+
+  const groupName = (gid) => (groups.find((g) => g.id === gid) || {}).name
+
+  return (
+    <div className="ideas">
+      {loading ? (
+        <p className="empty">Loading...</p>
+      ) : ideas.length === 0 ? (
+        <p className="empty">No ideas yet. Add one with the + button.</p>
+      ) : (
+        <ul className="task-list">
+          {ideas.map((i) => (
+            <li
+              key={i.id}
+              className={`task idea ${selected.has(i.id) ? 'is-selected' : ''}`}
+            >
+              <span className="spine" aria-hidden="true" />
+              <label className="task-check">
+                <input
+                  type="checkbox"
+                  checked={selected.has(i.id)}
+                  onChange={() => toggleSelect(i.id)}
+                  aria-label={`Select ${i.title}`}
+                />
+                <span className="box" />
+              </label>
+              <div className="task-body">
+                <span className="task-title">{i.title}</span>
+                <span className="task-meta">
+                  {i.group_id && (
+                    <span className="group-tag">{groupName(i.group_id)}</span>
+                  )}
+                  {i.user_id !== myId && (
+                    <span className="from-tag">from {nameFor(i.user_id)}</span>
+                  )}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
         +
       </button>
 
@@ -704,19 +854,46 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
 function Shell({ session }) {
   const [screen, setScreen] = useState('tdl')
   const [tasks, setTasks] = useState([])
+  const [ideas, setIdeas] = useState([])
   const [profile, setProfile] = useState(null)
   const [groups, setGroups] = useState([])
   const [members, setMembers] = useState([])
   const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
+  const rolledRef = useRef(false)
 
   const myId = session.user.id
   const myEmail = (session.user.email || '').toLowerCase()
 
+  // create the next occurrence for any recurring task whose date has arrived
+  const rollRecurring = useCallback(async (taskList) => {
+    const t0 = today()
+    const due = taskList.filter(
+      (t) => t.repeat_type && t.due_date && t.due_date <= t0
+    )
+    if (!due.length) return false
+    for (const t of due) {
+      const anchor = t.repeat_anchor || Number(t.due_date.slice(8, 10))
+      const next = nextOccurrence(t.due_date, t.repeat_type, anchor)
+      await supabase.from('tasks').insert([
+        {
+          title: t.title,
+          due_date: next,
+          repeat_type: t.repeat_type,
+          repeat_anchor: anchor,
+          user_id: t.user_id,
+          created_by: t.created_by,
+        },
+      ])
+      // current occurrence hands off the baton and becomes a plain task
+      await supabase.from('tasks').update({ repeat_type: null }).eq('id', t.id)
+    }
+    return true
+  }, [])
+
   const refresh = useCallback(async () => {
     setLoading(true)
 
-    // ensure a profile row exists
     let { data: prof } = await supabase
       .from('profiles')
       .select('*')
@@ -732,15 +909,28 @@ function Shell({ session }) {
     }
     setProfile(prof)
 
-    const { data: taskData } = await supabase.from('tasks').select('*')
-    setTasks(taskData || [])
+    let { data: taskData } = await supabase.from('tasks').select('*')
+    taskData = taskData || []
+
+    if (!rolledRef.current) {
+      rolledRef.current = true
+      const rolled = await rollRecurring(taskData)
+      if (rolled) {
+        const r = await supabase.from('tasks').select('*')
+        taskData = r.data || []
+      }
+    }
+    setTasks(taskData)
+
+    const { data: ideaData } = await supabase.from('ideas').select('*')
+    setIdeas(ideaData || [])
 
     const { data: groupData } = await supabase.from('groups').select('*')
     setGroups(groupData || [])
 
     const { data: memberData } = await supabase.from('group_members').select('*')
     const memberIds = [...new Set((memberData || []).map((m) => m.user_id))]
-    let profMap = {}
+    const profMap = {}
     if (memberIds.length) {
       const { data: profs } = await supabase
         .from('profiles')
@@ -748,11 +938,9 @@ function Shell({ session }) {
         .in('id', memberIds)
       ;(profs || []).forEach((p) => (profMap[p.id] = p))
     }
-    const membersWithNames = (memberData || []).map((m) => ({
-      ...m,
-      name: profMap[m.user_id]?.name,
-    }))
-    setMembers(membersWithNames)
+    setMembers(
+      (memberData || []).map((m) => ({ ...m, name: profMap[m.user_id]?.name }))
+    )
 
     const { data: inviteData } = await supabase
       .from('group_invites')
@@ -761,13 +949,12 @@ function Shell({ session }) {
     setInvites((inviteData || []).filter((i) => i.invited_email === myEmail))
 
     setLoading(false)
-  }, [myId, myEmail, session])
+  }, [myId, myEmail, session, rollRecurring])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  // people for "Task for": me + unique groupmates
   const peopleMap = {}
   peopleMap[myId] = { id: myId, name: profile?.name || 'Me' }
   members.forEach((m) => {
@@ -791,6 +978,12 @@ function Shell({ session }) {
             TDL
           </button>
           <button
+            className={screen === 'ideas' ? 'active' : ''}
+            onClick={() => setScreen('ideas')}
+          >
+            Ideas
+          </button>
+          <button
             className={screen === 'setup' ? 'active' : ''}
             onClick={() => setScreen('setup')}
           >
@@ -800,7 +993,7 @@ function Shell({ session }) {
       </header>
 
       <main>
-        {screen === 'tdl' ? (
+        {screen === 'tdl' && (
           <Tdl
             tasks={tasks}
             loading={loading}
@@ -809,7 +1002,18 @@ function Shell({ session }) {
             myId={myId}
             nameFor={nameFor}
           />
-        ) : (
+        )}
+        {screen === 'ideas' && (
+          <Ideas
+            ideas={ideas}
+            loading={loading}
+            refresh={refresh}
+            groups={groups}
+            myId={myId}
+            nameFor={nameFor}
+          />
+        )}
+        {screen === 'setup' && (
           <Setup
             profile={profile}
             groups={groups}
