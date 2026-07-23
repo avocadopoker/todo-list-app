@@ -7,8 +7,9 @@ workflows:
       groups:
         - iOS_signing_tdl
         - supabase_tdl
+      integrations:
+        app_store_connect: Codemagic
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
       node: 20
       xcode: latest
@@ -26,9 +27,14 @@ workflows:
         script: |
           npx cap sync ios
 
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods (only if this project uses them)
         script: |
-          cd ios/App && pod install
+          if [ -f ios/App/Podfile ]; then
+            echo "Podfile found - running pod install"
+            cd ios/App && pod install
+          else
+            echo "No Podfile - project uses Swift Package Manager, skipping"
+          fi
 
       - name: Set up code signing
         script: |
@@ -49,9 +55,17 @@ workflows:
 
       - name: Build ipa
         script: |
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+          if [ -d ios/App/App.xcworkspace ]; then
+            echo "Building from workspace (CocoaPods)"
+            xcode-project build-ipa \
+              --workspace "ios/App/App.xcworkspace" \
+              --scheme "$XCODE_SCHEME"
+          else
+            echo "Building from project (SPM)"
+            xcode-project build-ipa \
+              --project "ios/App/App.xcodeproj" \
+              --scheme "$XCODE_SCHEME"
+          fi
 
     artifacts:
       - build/ios/ipa/*.ipa
