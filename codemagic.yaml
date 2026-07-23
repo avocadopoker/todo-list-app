@@ -1,76 +1,36 @@
 workflows:
-  ios-tdl:
-    name: TDL iOS TestFlight
+  ios-testflight:
+    name: iOS TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
     environment:
-      groups:
-        - iOS_signing_tdl
-        - supabase_tdl
-      integrations:
-        app_store_connect: Codemagic
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.padelmatcher.app
       vars:
+        BUNDLE_ID: "com.padelmatcher.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
-      node: 20
-      xcode: latest
-      cocoapods: default
     scripts:
-      - name: Install npm dependencies
-        script: |
-          npm install
-
+      - name: Install dependencies
+        script: npm install
       - name: Build web app
-        script: |
-          npm run build
-
-      - name: Sync Capacitor iOS
-        script: |
-          npx cap sync ios
-
-      - name: Install CocoaPods (only if this project uses them)
-        script: |
-          if [ -f ios/App/Podfile ]; then
-            echo "Podfile found - running pod install"
-            cd ios/App && pod install
-          else
-            echo "No Podfile - project uses Swift Package Manager, skipping"
-          fi
-
+        script: npm run build
+      - name: Capacitor sync
+        script: npx cap sync ios
       - name: Set up code signing
+        script: xcode-project use-profiles --profile-types app-store
+      - name: Build iOS app
         script: |
-          keychain initialize
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates \
-            --certificate /tmp/certificate.p12 \
-            --certificate-password $CM_CERTIFICATE_PASSWORD
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo $CM_PROVISIONING_PROFILE | base64 --decode \
-            > ~/Library/MobileDevice/Provisioning\ Profiles/tdl.mobileprovision
-          xcode-project use-profiles
-
-      - name: Set build number
-        script: |
-          cd ios/App
-          agvtool new-version -all $PROJECT_BUILD_NUMBER
-
-      - name: Build ipa
-        script: |
-          if [ -d ios/App/App.xcworkspace ]; then
-            echo "Building from workspace (CocoaPods)"
-            xcode-project build-ipa \
-              --workspace "ios/App/App.xcworkspace" \
-              --scheme "$XCODE_SCHEME"
-          else
-            echo "Building from project (SPM)"
-            xcode-project build-ipa \
-              --project "ios/App/App.xcodeproj" \
-              --scheme "$XCODE_SCHEME"
-          fi
-
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --config Release
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-
     publishing:
       app_store_connect:
         auth: integration
