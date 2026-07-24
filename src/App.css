@@ -40,7 +40,8 @@ button { font-family: inherit; cursor: pointer; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px
+           calc(24px + env(safe-area-inset-bottom));
   background:
     radial-gradient(120% 80% at 50% -10%, var(--red-faint), transparent 60%),
     var(--surface);
@@ -137,7 +138,7 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: calc(14px + env(safe-area-inset-top)) 20px 14px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -154,7 +155,11 @@ input:focus {
 }
 .screen-tabs button.active { background: var(--ink); color: #fff; }
 
-main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
+main {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 22px 20px calc(120px + env(safe-area-inset-bottom));
+}
 
 /* ---------- view switch ---------- */
 .view-switch {
@@ -253,7 +258,7 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
 .fab {
   position: fixed;
   right: max(24px, calc(50vw - 310px + 24px));
-  bottom: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
   width: 60px; height: 60px;
   border-radius: 50%;
   border: none;
@@ -272,7 +277,7 @@ main { max-width: 620px; margin: 0 auto; padding: 22px 20px 120px; }
 .delete-bar {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   display: flex;
   align-items: center;
