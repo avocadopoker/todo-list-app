@@ -18,27 +18,24 @@ function shiftDays(baseYmd, n) {
 function daysInMonth(year, monthIdx) {
   return new Date(year, monthIdx + 1, 0).getDate()
 }
-// next occurrence for weekly / monthly / yearly.
-// anchorDay is the ORIGINAL day-of-month so a Jan 31 series clamps to Feb 28
-// but snaps back to Mar 31 instead of drifting to the 28th forever.
-function nextOccurrence(dateStr, type, anchorDay) {
+// add whole months, clamping to anchor day. anchorDay is the ORIGINAL
+// day-of-month so a Jan 31 series clamps to Feb 28 but snaps back to Mar 31
+// instead of drifting to the 28th forever.
+function addMonths(dateStr, n, anchorDay) {
   const d = new Date(dateStr + 'T00:00:00')
   const anchor = anchorDay || d.getDate()
-  if (type === 'weekly') return shiftDays(dateStr, 7)
-  if (type === 'monthly') {
-    let y = d.getFullYear()
-    let m = d.getMonth() + 1
-    if (m > 11) {
-      m = 0
-      y += 1
-    }
-    return ymd(new Date(y, m, Math.min(anchor, daysInMonth(y, m))))
-  }
-  if (type === 'yearly') {
-    const m = d.getMonth()
-    const y = d.getFullYear() + 1
-    return ymd(new Date(y, m, Math.min(anchor, daysInMonth(y, m))))
-  }
+  let total = d.getFullYear() * 12 + d.getMonth() + n
+  const y = Math.floor(total / 12)
+  const m = ((total % 12) + 12) % 12
+  return ymd(new Date(y, m, Math.min(anchor, daysInMonth(y, m))))
+}
+// next occurrence for "every N day/week/month/year"
+function nextOccurrence(dateStr, interval, unit, anchorDay) {
+  const n = Math.max(1, Number(interval) || 1)
+  if (unit === 'day') return shiftDays(dateStr, n)
+  if (unit === 'week') return shiftDays(dateStr, n * 7)
+  if (unit === 'month') return addMonths(dateStr, n, anchorDay)
+  if (unit === 'year') return addMonths(dateStr, n * 12, anchorDay)
   return dateStr
 }
 function prettyDate(dateStr) {
@@ -55,18 +52,27 @@ function dailySeed() {
   return h
 }
 
-const REPEATS = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
+const UNITS = [
+  { value: 'day', label: 'day/s' },
+  { value: 'week', label: 'week/s' },
+  { value: 'month', label: 'month/s' },
+  { value: 'year', label: 'year/s' },
 ]
-const repeatLabel = (v) => (REPEATS.find((r) => r.value === v) || {}).label || ''
+// e.g. "every 3 weeks" / "every 1 day"
+function repeatLabel(interval, unit) {
+  if (!unit) return ''
+  const n = Number(interval) || 1
+  const names = { day: 'day', week: 'week', month: 'month', year: 'year' }
+  const base = names[unit] || unit
+  return `every ${n} ${base}${n === 1 ? '' : 's'}`
+}
 
 const VIEWS = [
   { key: 'today', label: 'Today' },
   { key: 'tomorrow', label: 'Tomorrow' },
   { key: 'next7', label: 'Next 7d' },
   { key: 'next30', label: 'Next 30d' },
+  { key: 'all', label: 'All' },
 ]
 
 function filterForView(tasks, view) {
@@ -82,6 +88,7 @@ function filterForView(tasks, view) {
     const end = shiftDays(t0, 29)
     return tasks.filter((x) => x.due_date && x.due_date >= t0 && x.due_date <= end)
   }
+  if (view === 'all') return tasks.filter((x) => x.due_date)
   return []
 }
 function sortTasks(list) {
@@ -107,8 +114,14 @@ function Login() {
     setMsg('')
     const mail = email.trim().toLowerCase()
     if (mode === 'reset') {
+      // Always send people to the web app for the reset. On the website this
+      // is the same origin; inside the iOS app the email link opens Safari
+      // (where the reset works), then they return to the app and log in.
+      const resetTarget = window.location.origin.startsWith('http')
+        ? window.location.origin
+        : 'https://tdltodolist.netlify.app'
       const { error } = await supabase.auth.resetPasswordForEmail(mail, {
-        redirectTo: window.location.origin,
+        redirectTo: resetTarget,
       })
       setMsg(error ? error.message : 'Reset link sent. Check your email.')
       setBusy(false)
@@ -299,8 +312,10 @@ function TaskRow({ task, selected, onSelect, timeless, fromName }) {
           )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
           {fromName && <span className="from-tag">from {fromName}</span>}
-          {task.repeat_type && (
-            <span className="repeat-tag">{repeatLabel(task.repeat_type)}</span>
+          {task.repeat_unit && (
+            <span className="repeat-tag">
+              {repeatLabel(task.repeat_interval, task.repeat_unit)}
+            </span>
           )}
         </span>
       </div>
@@ -313,7 +328,8 @@ function AddTask({ onDone, onCancel, people, myId }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [recurring, setRecurring] = useState(false)
-  const [repeatType, setRepeatType] = useState('weekly')
+  const [repeatInterval, setRepeatInterval] = useState(1)
+  const [repeatUnit, setRepeatUnit] = useState('week')
   const [assignee, setAssignee] = useState(myId)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -331,7 +347,8 @@ function AddTask({ onDone, onCancel, people, myId }) {
       {
         title: name,
         due_date: due,
-        repeat_type: recurring ? repeatType : null,
+        repeat_interval: recurring ? Math.max(1, Number(repeatInterval) || 1) : null,
+        repeat_unit: recurring ? repeatUnit : null,
         repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
         user_id: assignee,
       },
@@ -399,23 +416,30 @@ function AddTask({ onDone, onCancel, people, myId }) {
           </label>
           {recurring && (
             <>
-              <div className="prio-picker">
-                {REPEATS.map((r) => (
-                  <button
-                    type="button"
-                    key={r.value}
-                    className={repeatType === r.value ? 'active' : ''}
-                    onClick={() => setRepeatType(r.value)}
-                  >
-                    {r.label}
-                  </button>
-                ))}
+              <div className="repeat-row">
+                <span>Every</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={repeatInterval}
+                  onChange={(e) => setRepeatInterval(e.target.value)}
+                  className="repeat-num"
+                />
+                <select
+                  value={repeatUnit}
+                  onChange={(e) => setRepeatUnit(e.target.value)}
+                >
+                  {UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <span className="hint">
-                {repeatType === 'weekly' && 'Repeats on the same weekday.'}
-                {repeatType === 'monthly' &&
-                  'Repeats on the same date each month. Short months fall back to the last day.'}
-                {repeatType === 'yearly' && 'Repeats on the same date each year.'}
+                {repeatUnit === 'month' || repeatUnit === 'year'
+                  ? 'Repeats on the same date. Short months fall back to the last day.'
+                  : 'Repeats on this schedule from the chosen date.'}
               </span>
             </>
           )}
@@ -686,6 +710,65 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
   )
 }
 
+/* ---------- recurring screen ---------- */
+function Recurring({ tasks, loading, refresh, myId, nameFor }) {
+  const [selected, setSelected] = useState(new Set())
+
+  const recurring = tasks
+    .filter((t) => t.repeat_unit)
+    .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function deleteSelected() {
+    await supabase.from('tasks').delete().in('id', [...selected])
+    setSelected(new Set())
+    refresh()
+  }
+
+  return (
+    <div className="tdl">
+      <p className="section-title" style={{ marginBottom: '16px' }}>
+        All recurring tasks
+      </p>
+      {loading ? (
+        <p className="empty">Loading...</p>
+      ) : recurring.length === 0 ? (
+        <p className="empty">No recurring tasks yet.</p>
+      ) : (
+        <ul className="task-list">
+          {recurring.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              selected={selected.has(t.id)}
+              onSelect={toggleSelect}
+              timeless={false}
+              fromName={
+                t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
+              }
+            />
+          ))}
+        </ul>
+      )}
+
+      {selected.size > 0 && (
+        <div className="delete-bar">
+          <span>{selected.size} selected</span>
+          <button onClick={deleteSelected}>Delete selected</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ---------- setup screen ---------- */
 function Setup({ profile, groups, members, invites, myId, refresh }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
@@ -693,12 +776,27 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
   const [newGroup, setNewGroup] = useState('')
   const [inviteEmail, setInviteEmail] = useState({})
   const [note, setNote] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteErr, setDeleteErr] = useState('')
 
   async function saveName() {
     setSavingName(true)
     await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
     setSavingName(false)
     refresh()
+  }
+
+  async function deleteAccount() {
+    setDeleting(true)
+    setDeleteErr('')
+    const { error } = await supabase.rpc('delete_current_user')
+    if (error) {
+      setDeleteErr(error.message)
+      setDeleting(false)
+      return
+    }
+    await supabase.auth.signOut()
   }
 
   async function createGroup(e) {
@@ -846,6 +944,42 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
       <button className="btn-outline signout" onClick={() => supabase.auth.signOut()}>
         Sign out
       </button>
+
+      <section className="setup-section danger">
+        <span className="section-title">Account</span>
+        {!confirmDelete ? (
+          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
+            Delete account
+          </button>
+        ) : (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              This permanently deletes your account and all your tasks, ideas, and
+              groups you own. This can't be undone.
+            </p>
+            {deleteErr && <p className="auth-msg">{deleteErr}</p>}
+            <div className="invite-actions">
+              <button
+                className="btn-danger"
+                onClick={deleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete everything'}
+              </button>
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  setConfirmDelete(false)
+                  setDeleteErr('')
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
@@ -869,24 +1003,28 @@ function Shell({ session }) {
   const rollRecurring = useCallback(async (taskList) => {
     const t0 = today()
     const due = taskList.filter(
-      (t) => t.repeat_type && t.due_date && t.due_date <= t0
+      (t) => t.repeat_unit && t.due_date && t.due_date <= t0
     )
     if (!due.length) return false
     for (const t of due) {
       const anchor = t.repeat_anchor || Number(t.due_date.slice(8, 10))
-      const next = nextOccurrence(t.due_date, t.repeat_type, anchor)
+      const next = nextOccurrence(t.due_date, t.repeat_interval, t.repeat_unit, anchor)
       await supabase.from('tasks').insert([
         {
           title: t.title,
           due_date: next,
-          repeat_type: t.repeat_type,
+          repeat_interval: t.repeat_interval,
+          repeat_unit: t.repeat_unit,
           repeat_anchor: anchor,
           user_id: t.user_id,
           created_by: t.created_by,
         },
       ])
       // current occurrence hands off the baton and becomes a plain task
-      await supabase.from('tasks').update({ repeat_type: null }).eq('id', t.id)
+      await supabase
+        .from('tasks')
+        .update({ repeat_unit: null, repeat_interval: null })
+        .eq('id', t.id)
     }
     return true
   }, [])
@@ -978,6 +1116,12 @@ function Shell({ session }) {
             TDL
           </button>
           <button
+            className={screen === 'recurring' ? 'active' : ''}
+            onClick={() => setScreen('recurring')}
+          >
+            Recurring
+          </button>
+          <button
             className={screen === 'ideas' ? 'active' : ''}
             onClick={() => setScreen('ideas')}
           >
@@ -999,6 +1143,15 @@ function Shell({ session }) {
             loading={loading}
             refresh={refresh}
             people={people}
+            myId={myId}
+            nameFor={nameFor}
+          />
+        )}
+        {screen === 'recurring' && (
+          <Recurring
+            tasks={tasks}
+            loading={loading}
+            refresh={refresh}
             myId={myId}
             nameFor={nameFor}
           />

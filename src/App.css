@@ -479,3 +479,40 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   font-size: 0.7rem;
 }
 .task.idea .task-meta:empty { display: none; }
+
+/* ---------- recurring input row ---------- */
+.repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.repeat-row .repeat-num { width: 72px; }
+.repeat-row select { flex: 1; }
+
+/* ---------- danger zone ---------- */
+.setup-section.danger { margin-top: 12px; }
+.btn-danger {
+  align-self: flex-start;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-danger:hover { background: var(--red-press); }
+.btn-danger:disabled { opacity: 0.6; cursor: default; }
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--red-faint);
+  border: 1px solid var(--red-tint);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
