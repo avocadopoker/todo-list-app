@@ -45,11 +45,54 @@ function prettyDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
+function weekdayLabel(dateStr) {
+  const t0 = today()
+  if (dateStr === t0) return 'Today'
+  if (dateStr === shiftDays(t0, 1)) return 'Tomorrow'
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString(undefined, { weekday: 'long' })
+}
+function fullDayLabel(dateStr) {
+  const t0 = today()
+  if (dateStr === t0) return 'Today'
+  if (dateStr === shiftDays(t0, 1)) return 'Tomorrow'
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
 function dailySeed() {
   const s = today()
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   return h
+}
+
+// a "habit" is a recurring task that repeats at least monthly (not yearly)
+function isHabit(task) {
+  return task.repeat_unit === 'day' || task.repeat_unit === 'week' || task.repeat_unit === 'month'
+}
+// next slot strictly AFTER `bound` (used when a task is marked Done today)
+function slotAfter(dueDate, interval, unit, anchor, bound) {
+  let d = dueDate
+  let guard = 0
+  while (d <= bound && guard < 1000) {
+    d = nextOccurrence(d, interval, unit, anchor)
+    guard++
+  }
+  return d
+}
+// next slot ON OR AFTER `bound` (used when an occurrence was missed)
+function slotOnOrAfter(dueDate, interval, unit, anchor, bound) {
+  let d = dueDate
+  let guard = 0
+  while (d < bound && guard < 1000) {
+    d = nextOccurrence(d, interval, unit, anchor)
+    guard++
+  }
+  return d
 }
 
 const UNITS = [
@@ -69,17 +112,14 @@ function repeatLabel(interval, unit) {
 
 const VIEWS = [
   { key: 'today', label: 'Today' },
-  { key: 'tomorrow', label: 'Tomorrow' },
-  { key: 'next7', label: 'Next 7d' },
-  { key: 'next30', label: 'Next 30d' },
+  { key: 'next7', label: '7 Days' },
+  { key: 'next30', label: '30 Days' },
   { key: 'all', label: 'All' },
 ]
 
 function filterForView(tasks, view) {
   const t0 = today()
   if (view === 'today') return tasks.filter((x) => x.due_date && x.due_date <= t0)
-  if (view === 'tomorrow')
-    return tasks.filter((x) => x.due_date === shiftDays(t0, 1))
   if (view === 'next7') {
     const end = shiftDays(t0, 6)
     return tasks.filter((x) => x.due_date && x.due_date >= t0 && x.due_date <= end)
@@ -90,6 +130,19 @@ function filterForView(tasks, view) {
   }
   if (view === 'all') return tasks.filter((x) => x.due_date)
   return []
+}
+// group sorted tasks by due_date into [{date, label, tasks}] for separated views
+function groupByDay(sorted, labelFn) {
+  const groups = []
+  let cur = null
+  for (const t of sorted) {
+    if (!cur || cur.date !== t.due_date) {
+      cur = { date: t.due_date, label: labelFn(t.due_date), tasks: [] }
+      groups.push(cur)
+    }
+    cur.tasks.push(t)
+  }
+  return groups
 }
 function sortTasks(list) {
   return [...list].sort((a, b) => {
@@ -317,6 +370,12 @@ function TaskRow({ task, selected, onSelect, timeless, fromName }) {
               {repeatLabel(task.repeat_interval, task.repeat_unit)}
             </span>
           )}
+          {isHabit(task) && task.streak > 0 && (
+            <span className="streak-tag">🔥 {task.streak}</span>
+          )}
+          {task.reward && (
+            <span className="reward-tag">🎁 {task.reward}</span>
+          )}
         </span>
       </div>
     </li>
@@ -331,10 +390,12 @@ function AddTask({ onDone, onCancel, people, myId }) {
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
   const [assignee, setAssignee] = useState(myId)
+  const [reward, setReward] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
   const showAssign = people && people.length > 1
+  const assigningToOther = assignee !== myId
 
   async function save(e) {
     e.preventDefault()
@@ -350,6 +411,7 @@ function AddTask({ onDone, onCancel, people, myId }) {
         repeat_interval: recurring ? Math.max(1, Number(repeatInterval) || 1) : null,
         repeat_unit: recurring ? repeatUnit : null,
         repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
+        reward: assigningToOther && reward.trim() ? reward.trim() : null,
         user_id: assignee,
       },
     ])
@@ -390,6 +452,18 @@ function AddTask({ onDone, onCancel, people, myId }) {
                 </option>
               ))}
             </select>
+          </label>
+        )}
+
+        {assigningToOther && (
+          <label>
+            Reward (optional)
+            <input
+              type="text"
+              value={reward}
+              onChange={(e) => setReward(e.target.value)}
+              placeholder="A little thank-you for doing it"
+            />
           </label>
         )}
 
@@ -460,11 +534,33 @@ function AddTask({ onDone, onCancel, people, myId }) {
   )
 }
 
+/* ---------- streak celebration overlay ---------- */
+function StreakBurst({ n, onEnd }) {
+  useEffect(() => {
+    const t = setTimeout(onEnd, 2600)
+    return () => clearTimeout(t)
+  }, [onEnd])
+  return (
+    <div className="streak-overlay" onClick={onEnd}>
+      <div className="streak-pop">
+        <div className="burst" aria-hidden="true">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <span key={i} style={{ '--i': i }} />
+          ))}
+        </div>
+        <div className="streak-num">🔥 {n}</div>
+        <div className="streak-caption">day streak!</div>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
+function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
+  const [burst, setBurst] = useState(null)
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -475,8 +571,57 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
     })
   }
 
-  async function deleteSelected() {
-    await supabase.from('tasks').delete().in('id', [...selected])
+  // Mark selected tasks Done: habits advance their streak to the next
+  // occurrence (+1); missed-independent one-offs are simply removed.
+  async function doneSelected() {
+    const t0 = today()
+    const chosen = tasks.filter((t) => selected.has(t.id))
+
+    // required Today items (dated <= today) that are NOT being cleared now
+    const requiredToday = tasks.filter((t) => t.due_date && t.due_date <= t0)
+    const clearedNow = requiredToday.filter((t) => selected.has(t.id))
+    const remaining = requiredToday.length - clearedNow.length
+
+    for (const t of chosen) {
+      if (t.repeat_unit) {
+        const anchor = t.repeat_anchor || Number((t.due_date || t0).slice(8, 10))
+        const nextDate = slotAfter(
+          t.due_date || t0,
+          t.repeat_interval,
+          t.repeat_unit,
+          anchor,
+          t0
+        )
+        const nextStreak = isHabit(t) ? (t.streak || 0) + 1 : null
+        await supabase.from('tasks').insert([
+          {
+            title: t.title,
+            due_date: nextDate,
+            repeat_interval: t.repeat_interval,
+            repeat_unit: t.repeat_unit,
+            repeat_anchor: anchor,
+            streak: nextStreak,
+            reward: t.reward,
+            user_id: t.user_id,
+            created_by: t.created_by,
+          },
+        ])
+      }
+      await supabase.from('tasks').delete().eq('id', t.id)
+    }
+
+    // daily "clear the list" streak: fired when this action empties Today
+    if (requiredToday.length > 0 && remaining === 0 && profile) {
+      if (profile.clear_last !== t0) {
+        const newStreak = (profile.clear_streak || 0) + 1
+        await supabase
+          .from('profiles')
+          .update({ clear_streak: newStreak, clear_last: t0 })
+          .eq('id', myId)
+        setBurst(newStreak)
+      }
+    }
+
     setSelected(new Set())
     refresh()
   }
@@ -506,8 +651,28 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
     }
   }
 
+  const grouped = view === 'next7' || view === 'next30'
+  const groups = grouped
+    ? groupByDay(visible, view === 'next7' ? weekdayLabel : fullDayLabel)
+    : null
+
+  const renderRow = (t) => (
+    <TaskRow
+      key={t.id}
+      task={t}
+      selected={selected.has(t.id)}
+      onSelect={toggleSelect}
+      timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
+      fromName={t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null}
+    />
+  )
+
   return (
     <div className="tdl">
+      {view === 'today' && profile && profile.clear_streak > 0 && (
+        <div className="day-streak">🔥 {profile.clear_streak} day streak</div>
+      )}
+
       <div className="view-switch">
         {VIEWS.map((v) => (
           <button
@@ -524,21 +689,17 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
         <p className="empty">Loading...</p>
       ) : visible.length === 0 ? (
         <p className="empty">Nothing here. Add something with the + button.</p>
-      ) : (
-        <ul className="task-list">
-          {visible.map((t) => (
-            <TaskRow
-              key={t.id}
-              task={t}
-              selected={selected.has(t.id)}
-              onSelect={toggleSelect}
-              timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
-              fromName={
-                t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
-              }
-            />
+      ) : grouped ? (
+        <div className="day-groups">
+          {groups.map((g) => (
+            <div key={g.date} className="day-group">
+              <div className="day-sep">{g.label}</div>
+              <ul className="task-list">{g.tasks.map(renderRow)}</ul>
+            </div>
           ))}
-        </ul>
+        </div>
+      ) : (
+        <ul className="task-list">{visible.map(renderRow)}</ul>
       )}
 
       <button className="fab" onClick={() => setAdding(true)} aria-label="Add task">
@@ -546,11 +707,13 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor }) {
       </button>
 
       {selected.size > 0 && (
-        <div className="delete-bar">
+        <div className="delete-bar done-bar">
           <span>{selected.size} selected</span>
-          <button onClick={deleteSelected}>Delete selected</button>
+          <button onClick={doneSelected}>{selected.size} Done</button>
         </div>
       )}
+
+      {burst !== null && <StreakBurst n={burst} onEnd={() => setBurst(null)} />}
     </div>
   )
 }
@@ -999,16 +1162,20 @@ function Shell({ session }) {
   const myId = session.user.id
   const myEmail = (session.user.email || '').toLowerCase()
 
-  // create the next occurrence for any recurring task whose date has arrived
+  // A recurring occurrence whose date has PASSED (strictly before today)
+  // without being marked Done is a miss: spawn the next occurrence (habit
+  // streak resets to 0) and leave the old one as a plain overdue task.
+  // Occurrences due exactly today are left alone — they can still be Done today.
   const rollRecurring = useCallback(async (taskList) => {
     const t0 = today()
     const due = taskList.filter(
-      (t) => t.repeat_unit && t.due_date && t.due_date <= t0
+      (t) => t.repeat_unit && t.due_date && t.due_date < t0
     )
     if (!due.length) return false
     for (const t of due) {
       const anchor = t.repeat_anchor || Number(t.due_date.slice(8, 10))
-      const next = nextOccurrence(t.due_date, t.repeat_interval, t.repeat_unit, anchor)
+      const next = slotOnOrAfter(t.due_date, t.repeat_interval, t.repeat_unit, anchor, t0)
+      const habit = isHabit(t)
       await supabase.from('tasks').insert([
         {
           title: t.title,
@@ -1016,6 +1183,8 @@ function Shell({ session }) {
           repeat_interval: t.repeat_interval,
           repeat_unit: t.repeat_unit,
           repeat_anchor: anchor,
+          streak: habit ? 0 : null,
+          reward: t.reward,
           user_id: t.user_id,
           created_by: t.created_by,
         },
@@ -1023,7 +1192,7 @@ function Shell({ session }) {
       // current occurrence hands off the baton and becomes a plain task
       await supabase
         .from('tasks')
-        .update({ repeat_unit: null, repeat_interval: null })
+        .update({ repeat_unit: null, repeat_interval: null, streak: null })
         .eq('id', t.id)
     }
     return true
@@ -1059,6 +1228,19 @@ function Shell({ session }) {
       }
     }
     setTasks(taskData)
+
+    // daily "clear the list" streak resets if a prior day was left uncleared —
+    // detected by any overdue (past-due) real task still sitting on the list
+    const t0 = today()
+    const hasOverdue = taskData.some((t) => t.due_date && t.due_date < t0)
+    if (prof && hasOverdue && prof.clear_streak > 0 && prof.clear_last !== t0) {
+      await supabase
+        .from('profiles')
+        .update({ clear_streak: 0 })
+        .eq('id', myId)
+      prof = { ...prof, clear_streak: 0 }
+      setProfile(prof)
+    }
 
     const { data: ideaData } = await supabase.from('ideas').select('*')
     setIdeas(ideaData || [])
@@ -1145,6 +1327,7 @@ function Shell({ session }) {
             people={people}
             myId={myId}
             nameFor={nameFor}
+            profile={profile}
           />
         )}
         {screen === 'recurring' && (

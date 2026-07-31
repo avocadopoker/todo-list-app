@@ -2,6 +2,8 @@
 
 :root {
   --red: #e5322a;
+  --green: #22a95f;
+  --green-tint: #d8f0e2;
   --red-press: #c72820;
   --red-tint: #fde8e6;
   --red-faint: #fdf3f2;
@@ -227,7 +229,7 @@ main {
   justify-content: center;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.task-check input:checked + .box { background: var(--red); border-color: var(--red); }
+.task-check input:checked + .box { background: var(--green); border-color: var(--green); }
 .task-check input:checked + .box::after { content: '\2713'; color: #fff; font-size: 0.8rem; }
 .task-check input:focus-visible + .box { box-shadow: 0 0 0 3px var(--red-tint); }
 
@@ -515,4 +517,112 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   border: 1px solid var(--red-tint);
   border-radius: var(--radius);
   padding: 16px 18px;
+}
+
+/* ---------- streak + reward tags ---------- */
+.streak-tag {
+  background: #fff1e6;
+  color: #c2410c;
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+.reward-tag {
+  background: var(--green-tint);
+  color: #146c43;
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.day-streak {
+  display: inline-flex;
+  align-self: flex-start;
+  background: #fff1e6;
+  color: #c2410c;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+}
+
+/* Done bar (was delete bar) keeps the same shell but the action reads green */
+.done-bar button { background: var(--green); }
+.done-bar button:hover { background: #178a4c; }
+
+/* ---------- day separators (7 / 30 day views) ---------- */
+.day-groups { display: flex; flex-direction: column; gap: 22px; }
+.day-group { display: flex; flex-direction: column; gap: 10px; }
+.day-sep {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 2px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+
+/* ---------- streak celebration overlay ---------- */
+.streak-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 22, 24, 0.55);
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.2s ease both;
+}
+@keyframes fadeIn { from { opacity: 0; } }
+.streak-pop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: popIn 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+.streak-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 5rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(229, 50, 42, 0.6);
+}
+.streak-caption {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffd9a8;
+  text-transform: lowercase;
+}
+.burst {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+.burst span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+  transform: rotate(calc(var(--i) * 30deg)) translateY(0);
+  animation: shoot 0.8s ease-out both;
+}
+.burst span:nth-child(even) { background: #ffb347; }
+@keyframes shoot {
+  from { opacity: 1; transform: rotate(calc(var(--i) * 30deg)) translateY(0); }
+  to { opacity: 0; transform: rotate(calc(var(--i) * 30deg)) translateY(-140px); }
 }
