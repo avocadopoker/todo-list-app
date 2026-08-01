@@ -15,6 +15,12 @@ function shiftDays(baseYmd, n) {
   d.setDate(d.getDate() + n)
   return ymd(d)
 }
+// whole days from a -> b (b later), calendar-based
+function daysBetween(aYmd, bYmd) {
+  const a = new Date(aYmd + 'T00:00:00')
+  const b = new Date(bYmd + 'T00:00:00')
+  return Math.round((b - a) / 86400000)
+}
 function daysInMonth(year, monthIdx) {
   return new Date(year, monthIdx + 1, 0).getDate()
 }
@@ -101,13 +107,14 @@ const UNITS = [
   { value: 'month', label: 'month/s' },
   { value: 'year', label: 'year/s' },
 ]
-// e.g. "every 3 weeks" / "every 1 day"
+// e.g. "every 3 weeks" / "every day"
 function repeatLabel(interval, unit) {
   if (!unit) return ''
   const n = Number(interval) || 1
   const names = { day: 'day', week: 'week', month: 'month', year: 'year' }
   const base = names[unit] || unit
-  return `every ${n} ${base}${n === 1 ? '' : 's'}`
+  if (n === 1) return `every ${base}`
+  return `every ${n} ${base}s`
 }
 
 const VIEWS = [
@@ -342,6 +349,7 @@ function ResetPassword({ onDone }) {
 /* ---------- task row ---------- */
 function TaskRow({ task, selected, onSelect, timeless, fromName }) {
   const overdue = task.due_date && task.due_date < today()
+  const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
   return (
     <li className={`task ${selected ? 'is-selected' : ''}`}>
       <span className="spine" aria-hidden="true" />
@@ -359,8 +367,9 @@ function TaskRow({ task, selected, onSelect, timeless, fromName }) {
         <span className="task-meta">
           {task.due_date && (
             <span className={overdue ? 'overdue' : ''}>
-              {overdue ? 'Overdue · ' : ''}
-              {prettyDate(task.due_date)}
+              {overdue
+                ? `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`
+                : prettyDate(task.due_date)}
             </span>
           )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
