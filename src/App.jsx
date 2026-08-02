@@ -968,6 +968,11 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
       setDeleting(false)
       return
     }
+    try {
+      localStorage.removeItem(CACHE_KEY)
+    } catch {
+      /* ignore */
+    }
     await supabase.auth.signOut()
   }
 
@@ -1113,7 +1118,7 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
         {note && <p className="setup-note">{note}</p>}
       </section>
 
-      <button className="btn-outline signout" onClick={() => supabase.auth.signOut()}>
+      <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
         Sign out
       </button>
 
@@ -1156,20 +1161,46 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
   )
 }
 
+/* ---------- local cache so the app paints instantly on open ---------- */
+const CACHE_KEY = 'tdl_cache_v1'
+function loadCache(uid) {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw)
+    return c && c.uid === uid ? c : null
+  } catch {
+    return null
+  }
+}
+function saveCache(uid, data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ uid, ...data }))
+  } catch {
+    /* storage full or unavailable - cache is best effort */
+  }
+}
+
 /* ---------- shell ---------- */
 function Shell({ session }) {
-  const [screen, setScreen] = useState('tdl')
-  const [tasks, setTasks] = useState([])
-  const [ideas, setIdeas] = useState([])
-  const [profile, setProfile] = useState(null)
-  const [groups, setGroups] = useState([])
-  const [members, setMembers] = useState([])
-  const [invites, setInvites] = useState([])
-  const [loading, setLoading] = useState(true)
-  const rolledRef = useRef(false)
-
   const myId = session.user.id
   const myEmail = (session.user.email || '').toLowerCase()
+  const cached = useRef(loadCache(myId)).current
+
+  const [screen, setScreen] = useState('tdl')
+  const [tasks, setTasks] = useState(cached?.tasks || [])
+  const [ideas, setIdeas] = useState(cached?.ideas || [])
+  const [profile, setProfile] = useState(cached?.profile || null)
+  const [groups, setGroups] = useState(cached?.groups || [])
+  const [members, setMembers] = useState(cached?.members || [])
+  const [invites, setInvites] = useState(cached?.invites || [])
+  // only block the UI when we have nothing at all to show
+  const [loading, setLoading] = useState(!cached)
+  const rolledRef = useRef(false)
+  const lastFetchRef = useRef(0)
+  // keep session in a ref so token refreshes don't re-create refresh()
+  const sessionRef = useRef(session)
+  sessionRef.current = session
 
   // A recurring occurrence whose date has PASSED (strictly before today)
   // without being marked Done is a miss: spawn the next occurrence (habit
@@ -1208,80 +1239,107 @@ function Shell({ session }) {
   }, [])
 
   const refresh = useCallback(async () => {
-    setLoading(true)
+    lastFetchRef.current = Date.now()
 
-    let { data: prof } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', myId)
-      .maybeSingle()
+    // Fire every read at once instead of waiting for them in sequence.
+    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes] =
+      await Promise.all([
+        supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
+        supabase.from('tasks').select('*'),
+        supabase.from('ideas').select('*'),
+        supabase.from('groups').select('*'),
+        supabase.from('group_members').select('*'),
+        supabase.from('group_invites').select('*').eq('status', 'pending'),
+      ])
+
+    let prof = profRes.data
+    let taskData = taskRes.data || []
+
+    // paint what we have right away; the rest is cheap follow-up work
+    setTasks(taskData)
+    setIdeas(ideaRes.data || [])
+    setGroups(groupRes.data || [])
+    setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
+    if (prof) setProfile(prof)
+    setLoading(false)
+
+    // first login: create the profile row if it is missing
     if (!prof) {
-      const meta = session.user.user_metadata || {}
+      const meta = sessionRef.current.user.user_metadata || {}
       await supabase
         .from('profiles')
         .upsert({ id: myId, email: myEmail, name: meta.name || '' })
-      const r = await supabase.from('profiles').select('*').eq('id', myId).maybeSingle()
+      const r = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', myId)
+        .maybeSingle()
       prof = r.data
+      setProfile(prof)
     }
-    setProfile(prof)
 
-    let { data: taskData } = await supabase.from('tasks').select('*')
-    taskData = taskData || []
+    // resolve groupmate names (only if this user is actually in a group)
+    const memberData = memberRes.data || []
+    const memberIds = [...new Set(memberData.map((m) => m.user_id))]
+    let membersWithNames = memberData
+    if (memberIds.length) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id,name,email')
+        .in('id', memberIds)
+      const profMap = {}
+      ;(profs || []).forEach((x) => (profMap[x.id] = x))
+      membersWithNames = memberData.map((m) => ({
+        ...m,
+        name: profMap[m.user_id]?.name,
+      }))
+    }
+    setMembers(membersWithNames)
 
+    // roll any missed recurring occurrences forward (once per app session)
     if (!rolledRef.current) {
       rolledRef.current = true
       const rolled = await rollRecurring(taskData)
       if (rolled) {
         const r = await supabase.from('tasks').select('*')
         taskData = r.data || []
+        setTasks(taskData)
       }
     }
-    setTasks(taskData)
 
-    // daily "clear the list" streak resets if a prior day was left uncleared —
-    // detected by any overdue (past-due) real task still sitting on the list
+    // daily clear-streak resets if a prior day was left uncleared
     const t0 = today()
     const hasOverdue = taskData.some((t) => t.due_date && t.due_date < t0)
     if (prof && hasOverdue && prof.clear_streak > 0 && prof.clear_last !== t0) {
-      await supabase
-        .from('profiles')
-        .update({ clear_streak: 0 })
-        .eq('id', myId)
+      await supabase.from('profiles').update({ clear_streak: 0 }).eq('id', myId)
       prof = { ...prof, clear_streak: 0 }
       setProfile(prof)
     }
 
-    const { data: ideaData } = await supabase.from('ideas').select('*')
-    setIdeas(ideaData || [])
-
-    const { data: groupData } = await supabase.from('groups').select('*')
-    setGroups(groupData || [])
-
-    const { data: memberData } = await supabase.from('group_members').select('*')
-    const memberIds = [...new Set((memberData || []).map((m) => m.user_id))]
-    const profMap = {}
-    if (memberIds.length) {
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id,name,email')
-        .in('id', memberIds)
-      ;(profs || []).forEach((p) => (profMap[p.id] = p))
-    }
-    setMembers(
-      (memberData || []).map((m) => ({ ...m, name: profMap[m.user_id]?.name }))
-    )
-
-    const { data: inviteData } = await supabase
-      .from('group_invites')
-      .select('*')
-      .eq('status', 'pending')
-    setInvites((inviteData || []).filter((i) => i.invited_email === myEmail))
-
-    setLoading(false)
-  }, [myId, myEmail, session, rollRecurring])
+    saveCache(myId, {
+      tasks: taskData,
+      ideas: ideaRes.data || [],
+      groups: groupRes.data || [],
+      members: membersWithNames,
+      invites: (inviteRes.data || []).filter((i) => i.invited_email === myEmail),
+      profile: prof,
+    })
+  }, [myId, myEmail, rollRecurring])
 
   useEffect(() => {
     refresh()
+  }, [refresh])
+
+  // Refetch when the app comes back to the foreground, but only if the data
+  // is actually stale - stops a quick minimise/reopen from reloading anything.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastFetchRef.current < 60000) return
+      refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refresh])
 
   const peopleMap = {}
