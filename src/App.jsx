@@ -347,7 +347,7 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, timeless, fromName }) {
+function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
   return (
@@ -387,6 +387,31 @@ function TaskRow({ task, selected, onSelect, timeless, fromName }) {
           )}
         </span>
       </div>
+      {onEdit && (
+        <button
+          className="edit-btn"
+          onClick={() => onEdit(task)}
+          aria-label={`Edit ${task.title}`}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            <path
+              d="M13.5 6.5l4 4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
     </li>
   )
 }
@@ -564,11 +589,171 @@ function StreakBurst({ n, onEnd }) {
   )
 }
 
+/* ---------- edit task ---------- */
+function EditTask({ task, onDone, onCancel, people, myId }) {
+  const [title, setTitle] = useState(task.title)
+  const [date, setDate] = useState(task.due_date || '')
+  const [recurring, setRecurring] = useState(!!task.repeat_unit)
+  const [repeatInterval, setRepeatInterval] = useState(task.repeat_interval || 1)
+  const [repeatUnit, setRepeatUnit] = useState(task.repeat_unit || 'week')
+  const [assignee, setAssignee] = useState(task.user_id)
+  const [reward, setReward] = useState(task.reward || '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const showAssign = people && people.length > 1
+  const assigningToOther = assignee !== myId
+
+  async function save(e) {
+    e.preventDefault()
+    const name = title.trim()
+    if (!name) return
+    setBusy(true)
+    setErr('')
+    const due = recurring ? date || today() : date || null
+    const willBeHabit = recurring && (repeatUnit === 'day' || repeatUnit === 'week' || repeatUnit === 'month')
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        title: name,
+        due_date: due,
+        repeat_interval: recurring ? Math.max(1, Number(repeatInterval) || 1) : null,
+        repeat_unit: recurring ? repeatUnit : null,
+        repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
+        // the streak stays put when it's still a habit; otherwise it no
+        // longer applies, so it's cleared
+        streak: willBeHabit ? task.streak : null,
+        reward: assigningToOther && reward.trim() ? reward.trim() : null,
+        user_id: assignee,
+      })
+      .eq('id', task.id)
+    setBusy(false)
+    if (error) setErr(error.message)
+    else onDone()
+  }
+
+  return (
+    <div className="add-screen">
+      <div className="add-head">
+        <button className="ghost" onClick={onCancel}>
+          ← Back
+        </button>
+        <h2>Edit task</h2>
+      </div>
+
+      <form onSubmit={save} className="add-form">
+        <label>
+          Name
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What needs doing?"
+            autoFocus
+            required
+          />
+        </label>
+
+        {showAssign && (
+          <label>
+            Task for
+            <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id === myId ? `${p.name || 'Me'} (me)` : p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {assigningToOther && (
+          <label>
+            Reward (optional)
+            <input
+              type="text"
+              value={reward}
+              onChange={(e) => setReward(e.target.value)}
+              placeholder="A little thank-you for doing it"
+            />
+          </label>
+        )}
+
+        <label>
+          Date
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <span className="hint">
+            Leave empty for a timeless task - no deadline, surfaced over time.
+          </span>
+        </label>
+
+        <div className="field">
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => setRecurring(e.target.checked)}
+            />
+            <span>Recurring</span>
+          </label>
+          {recurring && (
+            <>
+              <div className="repeat-row">
+                <span>Every</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={repeatInterval}
+                  onChange={(e) => setRepeatInterval(e.target.value)}
+                  className="repeat-num"
+                />
+                <select
+                  value={repeatUnit}
+                  onChange={(e) => setRepeatUnit(e.target.value)}
+                >
+                  {UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="hint">
+                {isHabit(task) && task.streak > 0
+                  ? `Current streak (🔥 ${task.streak}) is kept as long as this stays a day/week/month habit.`
+                  : repeatUnit === 'month' || repeatUnit === 'year'
+                  ? 'Repeats on the same date. Short months fall back to the last day.'
+                  : 'Repeats on this schedule from the chosen date.'}
+              </span>
+            </>
+          )}
+        </div>
+
+        {err && <p className="auth-msg">{err}</p>}
+
+        <div className="add-actions">
+          <button type="button" className="ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? 'Saving...' : 'Save changes'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 /* ---------- TDL screen ---------- */
 function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
 
   const toggleSelect = (id) => {
@@ -648,6 +833,20 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
       />
     )
 
+  if (editing)
+    return (
+      <EditTask
+        task={editing}
+        people={people}
+        myId={myId}
+        onCancel={() => setEditing(null)}
+        onDone={() => {
+          setEditing(null)
+          refresh()
+        }}
+      />
+    )
+
   let visible = sortTasks(filterForView(tasks, view))
 
   let timelessPick = null
@@ -673,12 +872,13 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
       onSelect={toggleSelect}
       timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
       fromName={t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null}
+      onEdit={setEditing}
     />
   )
 
   return (
     <div className="tdl">
-      {view === 'today' && profile && profile.clear_streak > 0 && (
+      {profile && profile.clear_streak > 0 && (
         <div className="day-streak">🔥 {profile.clear_streak} day streak</div>
       )}
 
@@ -883,8 +1083,9 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
 }
 
 /* ---------- recurring screen ---------- */
-function Recurring({ tasks, loading, refresh, myId, nameFor }) {
+function Recurring({ tasks, loading, refresh, myId, nameFor, people }) {
   const [selected, setSelected] = useState(new Set())
+  const [editing, setEditing] = useState(null)
 
   const recurring = tasks
     .filter((t) => t.repeat_unit)
@@ -904,6 +1105,20 @@ function Recurring({ tasks, loading, refresh, myId, nameFor }) {
     setSelected(new Set())
     refresh()
   }
+
+  if (editing)
+    return (
+      <EditTask
+        task={editing}
+        people={people}
+        myId={myId}
+        onCancel={() => setEditing(null)}
+        onDone={() => {
+          setEditing(null)
+          refresh()
+        }}
+      />
+    )
 
   return (
     <div className="tdl">
@@ -926,6 +1141,7 @@ function Recurring({ tasks, loading, refresh, myId, nameFor }) {
               fromName={
                 t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
               }
+              onEdit={setEditing}
             />
           ))}
         </ul>
@@ -1404,6 +1620,7 @@ function Shell({ session }) {
             refresh={refresh}
             myId={myId}
             nameFor={nameFor}
+            people={people}
           />
         )}
         {screen === 'ideas' && (

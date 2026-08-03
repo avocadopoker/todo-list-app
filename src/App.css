@@ -626,3 +626,21 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   from { opacity: 1; transform: rotate(calc(var(--i) * 30deg)) translateY(0); }
   to { opacity: 0; transform: rotate(calc(var(--i) * 30deg)) translateY(-140px); }
 }
+
+/* ---------- edit button (pencil, right end of the task box) ---------- */
+.edit-btn {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  margin: -14px -16px -14px 4px;
+  border: none;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.edit-btn:hover { background: var(--red-tint); color: var(--red-press); }
