@@ -24,6 +24,20 @@ function daysBetween(aYmd, bYmd) {
 function daysInMonth(year, monthIdx) {
   return new Date(year, monthIdx + 1, 0).getDate()
 }
+// Monday-first 6x7 grid of date strings covering the given month,
+// padded with the trailing/leading days of neighboring months.
+function monthGrid(year, monthIdx) {
+  const first = new Date(year, monthIdx, 1)
+  const firstWeekday = (first.getDay() + 6) % 7 // 0 = Monday
+  const gridStart = new Date(year, monthIdx, 1 - firstWeekday)
+  const cells = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart)
+    d.setDate(gridStart.getDate() + i)
+    cells.push({ date: ymd(d), inMonth: d.getMonth() === monthIdx })
+  }
+  return cells
+}
 // add whole months, clamping to anchor day. anchorDay is the ORIGINAL
 // day-of-month so a Jan 31 series clamps to Feb 28 but snaps back to Mar 31
 // instead of drifting to the 28th forever.
@@ -120,8 +134,7 @@ function repeatLabel(interval, unit) {
 const VIEWS = [
   { key: 'today', label: 'Today' },
   { key: 'next7', label: '7 Days' },
-  { key: 'next30', label: '30 Days' },
-  { key: 'all', label: 'All' },
+  { key: 'calendar', label: 'Calendar' },
 ]
 
 function filterForView(tasks, view) {
@@ -131,11 +144,6 @@ function filterForView(tasks, view) {
     const end = shiftDays(t0, 6)
     return tasks.filter((x) => x.due_date && x.due_date >= t0 && x.due_date <= end)
   }
-  if (view === 'next30') {
-    const end = shiftDays(t0, 29)
-    return tasks.filter((x) => x.due_date && x.due_date >= t0 && x.due_date <= end)
-  }
-  if (view === 'all') return tasks.filter((x) => x.due_date)
   return []
 }
 // group sorted tasks by due_date into [{date, label, tasks}] for separated views
@@ -417,9 +425,9 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
 }
 
 /* ---------- add task ---------- */
-function AddTask({ onDone, onCancel, people, myId }) {
+function AddTask({ onDone, onCancel, people, myId, presetDate }) {
   const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
+  const [date, setDate] = useState(presetDate || '')
   const [recurring, setRecurring] = useState(false)
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
@@ -748,11 +756,124 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
   )
 }
 
+/* ---------- calendar view ---------- */
+function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask, myId, nameFor }) {
+  const t0 = today()
+  const now = new Date(t0 + 'T00:00:00')
+  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() })
+  const [selectedDate, setSelectedDate] = useState(t0)
+
+  const grid = monthGrid(cursor.y, cursor.m)
+  const tasksByDate = {}
+  for (const t of tasks) {
+    if (!t.due_date) continue
+    ;(tasksByDate[t.due_date] = tasksByDate[t.due_date] || []).push(t)
+  }
+
+  const monthLabel = new Date(cursor.y, cursor.m, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  })
+  const onCurrentMonth = cursor.y === now.getFullYear() && cursor.m === now.getMonth()
+
+  function shiftMonth(n) {
+    setCursor((c) => {
+      let total = c.y * 12 + c.m + n
+      return { y: Math.floor(total / 12), m: ((total % 12) + 12) % 12 }
+    })
+  }
+  function goToday() {
+    setCursor({ y: now.getFullYear(), m: now.getMonth() })
+    setSelectedDate(t0)
+  }
+
+  const dayTasks = sortTasks(tasksByDate[selectedDate] || [])
+
+  return (
+    <div className="calendar">
+      <div className="cal-header">
+        <button className="cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+          ‹
+        </button>
+        <div className="cal-title-group">
+          <span className="cal-title">{monthLabel}</span>
+          {!(onCurrentMonth && selectedDate === t0) && (
+            <button className="cal-today" onClick={goToday}>
+              Today
+            </button>
+          )}
+        </div>
+        <button className="cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">
+          ›
+        </button>
+      </div>
+
+      <div className="cal-weekdays">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          <span key={i}>{d}</span>
+        ))}
+      </div>
+
+      <div className="cal-grid">
+        {grid.map((cell) => {
+          const count = (tasksByDate[cell.date] || []).length
+          const isToday = cell.date === t0
+          const isSel = cell.date === selectedDate
+          return (
+            <button
+              key={cell.date}
+              className={
+                'cal-cell' +
+                (cell.inMonth ? '' : ' dim') +
+                (isToday ? ' is-today' : '') +
+                (isSel ? ' is-selected' : '')
+              }
+              onClick={() => setSelectedDate(cell.date)}
+            >
+              <span className="cal-daynum">{Number(cell.date.slice(8, 10))}</span>
+              {count > 0 && <span className="cal-dot" />}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="cal-day-panel">
+        <div className="cal-day-head">
+          <span>{fullDayLabel(selectedDate)}</span>
+          <button className="cal-add" onClick={() => onAddForDate(selectedDate)}>
+            + Add
+          </button>
+        </div>
+        {dayTasks.length === 0 ? (
+          <p className="empty">Nothing scheduled.</p>
+        ) : (
+          <ul className="task-list">
+            {dayTasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                selected={selected.has(t.id)}
+                onSelect={toggleSelect}
+                timeless={false}
+                fromName={
+                  t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
+                }
+                onEdit={onEditTask}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ---------- TDL screen ---------- */
 function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
+  const [addDate, setAddDate] = useState(null)
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
 
@@ -825,9 +946,14 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
       <AddTask
         people={people}
         myId={myId}
-        onCancel={() => setAdding(false)}
+        presetDate={addDate}
+        onCancel={() => {
+          setAdding(false)
+          setAddDate(null)
+        }}
         onDone={() => {
           setAdding(false)
+          setAddDate(null)
           refresh()
         }}
       />
@@ -859,7 +985,7 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
     }
   }
 
-  const grouped = view === 'next7' || view === 'next30'
+  const grouped = view === 'next7'
   const groups = grouped
     ? groupByDay(visible, view === 'next7' ? weekdayLabel : fullDayLabel)
     : null
@@ -894,7 +1020,20 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
         ))}
       </div>
 
-      {loading ? (
+      {view === 'calendar' ? (
+        <CalendarView
+          tasks={tasks}
+          selected={selected}
+          toggleSelect={toggleSelect}
+          onAddForDate={(d) => {
+            setAddDate(d)
+            setAdding(true)
+          }}
+          onEditTask={setEditing}
+          myId={myId}
+          nameFor={nameFor}
+        />
+      ) : loading ? (
         <p className="empty">Loading...</p>
       ) : visible.length === 0 ? (
         <p className="empty">Nothing here. Add something with the + button.</p>
