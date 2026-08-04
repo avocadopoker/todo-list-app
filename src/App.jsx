@@ -774,7 +774,6 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
     month: 'long',
     year: 'numeric',
   })
-  const onCurrentMonth = cursor.y === now.getFullYear() && cursor.m === now.getMonth()
 
   function shiftMonth(n) {
     setCursor((c) => {
@@ -782,27 +781,30 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
       return { y: Math.floor(total / 12), m: ((total % 12) + 12) % 12 }
     })
   }
-  function goToday() {
-    setCursor({ y: now.getFullYear(), m: now.getMonth() })
-    setSelectedDate(t0)
-  }
 
   const dayTasks = sortTasks(tasksByDate[selectedDate] || [])
+  const panelRef = useRef(null)
+  const gridRef = useRef(null)
+  const MAX_DOTS = 5
+
+  function selectDate(d) {
+    setSelectedDate(d)
+    // give the panel a moment to render its content before scrolling to it
+    requestAnimationFrame(() => {
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+  function backToCalendar() {
+    gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <div className="calendar">
-      <div className="cal-header">
+      <div className="cal-header" ref={gridRef}>
         <button className="cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">
           ‹
         </button>
-        <div className="cal-title-group">
-          <span className="cal-title">{monthLabel}</span>
-          {!(onCurrentMonth && selectedDate === t0) && (
-            <button className="cal-today" onClick={goToday}>
-              Today
-            </button>
-          )}
-        </div>
+        <span className="cal-title">{monthLabel}</span>
         <button className="cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">
           ›
         </button>
@@ -828,16 +830,22 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
                 (isToday ? ' is-today' : '') +
                 (isSel ? ' is-selected' : '')
               }
-              onClick={() => setSelectedDate(cell.date)}
+              onClick={() => selectDate(cell.date)}
             >
               <span className="cal-daynum">{Number(cell.date.slice(8, 10))}</span>
-              {count > 0 && <span className="cal-dot" />}
+              {count > 0 && (
+                <span className="cal-dots">
+                  {Array.from({ length: Math.min(count, MAX_DOTS) }).map((_, i) => (
+                    <span key={i} className="cal-dot" />
+                  ))}
+                </span>
+              )}
             </button>
           )
         })}
       </div>
 
-      <div className="cal-day-panel">
+      <div className="cal-day-panel" ref={panelRef}>
         <div className="cal-day-head">
           <span>{fullDayLabel(selectedDate)}</span>
           <button className="cal-add" onClick={() => onAddForDate(selectedDate)}>
@@ -863,6 +871,9 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
             ))}
           </ul>
         )}
+        <button className="cal-back" onClick={backToCalendar}>
+          ↑ Back to calendar
+        </button>
       </div>
     </div>
   )

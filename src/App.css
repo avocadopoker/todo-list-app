@@ -668,28 +668,11 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   transition: background 0.15s ease, color 0.15s ease;
 }
 .cal-nav:hover { background: var(--red-tint); color: var(--red-press); }
-.cal-title-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .cal-title {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.15rem;
 }
-.cal-today {
-  border: 1px solid var(--red);
-  background: var(--red-faint);
-  color: var(--red-press);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-.cal-today:hover { background: var(--red-tint); }
 
 .cal-weekdays {
   display: grid;
@@ -725,18 +708,34 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .cal-cell.is-today { box-shadow: inset 0 0 0 1.5px var(--red); font-weight: 700; }
 .cal-cell.is-selected { background: var(--red); color: #fff; font-weight: 700; }
 .cal-cell.is-selected.is-today { box-shadow: none; }
-.cal-dot {
+.cal-dots {
   position: absolute;
   bottom: 5px;
   left: 50%;
   transform: translateX(-50%);
-  width: 5px;
-  height: 5px;
+  display: flex;
+  gap: 2px;
+}
+.cal-dot {
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--red);
 }
 .cal-cell.is-selected .cal-dot { background: #fff; }
 .cal-cell.dim .cal-dot { background: #e9cfcd; }
+
+.cal-back {
+  align-self: center;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 4px;
+}
+.cal-back:hover { color: var(--red); }
 
 .cal-day-panel {
   display: flex;
