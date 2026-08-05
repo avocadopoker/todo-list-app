@@ -783,15 +783,26 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
   }
 
   const dayTasks = sortTasks(tasksByDate[selectedDate] || [])
-  const panelRef = useRef(null)
+  const headRef = useRef(null)
   const gridRef = useRef(null)
   const MAX_DOTS = 5
 
   function selectDate(d) {
     setSelectedDate(d)
-    // give the panel a moment to render its content before scrolling to it
+    // wait two frames so the new day's tasks have painted before we measure,
+    // then land exactly at the day header (just below the sticky top nav).
+    // scrollIntoView tends to overshoot in the iOS webview when the target
+    // panel's height changes between the call and the paint, so we compute
+    // the scroll position ourselves instead.
     requestAnimationFrame(() => {
-      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      requestAnimationFrame(() => {
+        const headEl = headRef.current
+        if (!headEl) return
+        const topbar = document.querySelector('.topbar')
+        const clearance = (topbar ? topbar.getBoundingClientRect().height : 0) + 8
+        const y = headEl.getBoundingClientRect().top + window.pageYOffset - clearance
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+      })
     })
   }
   function backToCalendar() {
@@ -845,8 +856,8 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
         })}
       </div>
 
-      <div className="cal-day-panel" ref={panelRef}>
-        <div className="cal-day-head">
+      <div className="cal-day-panel">
+        <div className="cal-day-head" ref={headRef}>
           <span>{fullDayLabel(selectedDate)}</span>
           <button className="cal-add" onClick={() => onAddForDate(selectedDate)}>
             + Add
