@@ -131,6 +131,22 @@ function repeatLabel(interval, unit) {
   return `every ${n} ${base}s`
 }
 
+const DURATIONS = [
+  { value: '1', label: '1h' },
+  { value: '2', label: '2h' },
+  { value: '3', label: '3h' },
+  { value: '4', label: '4h' },
+  { value: '5', label: '5h' },
+  { value: '5+', label: '5h+' },
+]
+// "14:00:00" (Postgres time) -> "2:00 PM"
+function formatTime(timeStr) {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':')
+  const d = new Date(2000, 0, 1, Number(h), Number(m))
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
 const VIEWS = [
   { key: 'today', label: 'Today' },
   { key: 'next7', label: '7 Days' },
@@ -159,10 +175,15 @@ function groupByDay(sorted, labelFn) {
   }
   return groups
 }
+// Sort by date first, then - within the same day - earliest time first,
+// with untimed tasks trailing after every timed one on that day.
 function sortTasks(list) {
   return [...list].sort((a, b) => {
     if ((a.due_date || '') !== (b.due_date || ''))
       return (a.due_date || '').localeCompare(b.due_date || '')
+    if (a.due_time && b.due_time) return a.due_time.localeCompare(b.due_time)
+    if (a.due_time && !b.due_time) return -1
+    if (!a.due_time && b.due_time) return 1
     return (a.created_at || '').localeCompare(b.created_at || '')
   })
 }
@@ -380,6 +401,12 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
                 : prettyDate(task.due_date)}
             </span>
           )}
+          {task.due_time && (
+            <span className="time-tag">
+              {formatTime(task.due_time)}
+              {task.duration && ` · ${DURATIONS.find((d) => d.value === task.duration)?.label || ''}`}
+            </span>
+          )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
           {fromName && <span className="from-tag">from {fromName}</span>}
           {task.repeat_unit && (
@@ -428,6 +455,8 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
 function AddTask({ onDone, onCancel, people, myId, presetDate }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(presetDate || '')
+  const [time, setTime] = useState('')
+  const [duration, setDuration] = useState('2')
   const [recurring, setRecurring] = useState(false)
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
@@ -439,6 +468,12 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
   const showAssign = people && people.length > 1
   const assigningToOther = assignee !== myId
 
+  // a time only makes sense alongside a date - clearing the date clears it too
+  function changeDate(v) {
+    setDate(v)
+    if (!v) setTime('')
+  }
+
   async function save(e) {
     e.preventDefault()
     const name = title.trim()
@@ -446,10 +481,13 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
     setBusy(true)
     setErr('')
     const due = recurring ? date || today() : date || null
+    const useTime = due ? time : ''
     const { error } = await supabase.from('tasks').insert([
       {
         title: name,
         due_date: due,
+        due_time: useTime || null,
+        duration: useTime ? duration : null,
         repeat_interval: recurring ? Math.max(1, Number(repeatInterval) || 1) : null,
         repeat_unit: recurring ? repeatUnit : null,
         repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
@@ -473,7 +511,7 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
 
       <form onSubmit={save} className="add-form">
         <label>
-          Name
+          Task
           <input
             type="text"
             value={title}
@@ -483,6 +521,43 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
             required
           />
         </label>
+
+        <label>
+          Date
+          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
+          <span className="hint">
+            Leave empty for a timeless task - no deadline, surfaced over time.
+          </span>
+        </label>
+
+        {date && (
+          <label>
+            Time (optional)
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+        )}
+
+        {date && time && (
+          <div className="field">
+            <span className="field-label">How long will it take?</span>
+            <div className="duration-picker">
+              {DURATIONS.map((d) => (
+                <label key={d.value} className={`duration-opt${duration === d.value ? ' active' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={duration === d.value}
+                    onChange={() => setDuration(d.value)}
+                  />
+                  <span>{d.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showAssign && (
           <label>
@@ -508,18 +583,6 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
             />
           </label>
         )}
-
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
-          </span>
-        </label>
 
         <div className="field">
           <label className="switch-row">
@@ -601,6 +664,8 @@ function StreakBurst({ n, onEnd }) {
 function EditTask({ task, onDone, onCancel, people, myId }) {
   const [title, setTitle] = useState(task.title)
   const [date, setDate] = useState(task.due_date || '')
+  const [time, setTime] = useState(task.due_time ? task.due_time.slice(0, 5) : '')
+  const [duration, setDuration] = useState(task.duration || '2')
   const [recurring, setRecurring] = useState(!!task.repeat_unit)
   const [repeatInterval, setRepeatInterval] = useState(task.repeat_interval || 1)
   const [repeatUnit, setRepeatUnit] = useState(task.repeat_unit || 'week')
@@ -612,6 +677,11 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
   const showAssign = people && people.length > 1
   const assigningToOther = assignee !== myId
 
+  function changeDate(v) {
+    setDate(v)
+    if (!v) setTime('')
+  }
+
   async function save(e) {
     e.preventDefault()
     const name = title.trim()
@@ -619,12 +689,15 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
     setBusy(true)
     setErr('')
     const due = recurring ? date || today() : date || null
+    const useTime = due ? time : ''
     const willBeHabit = recurring && (repeatUnit === 'day' || repeatUnit === 'week' || repeatUnit === 'month')
     const { error } = await supabase
       .from('tasks')
       .update({
         title: name,
         due_date: due,
+        due_time: useTime || null,
+        duration: useTime ? duration : null,
         repeat_interval: recurring ? Math.max(1, Number(repeatInterval) || 1) : null,
         repeat_unit: recurring ? repeatUnit : null,
         repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
@@ -651,7 +724,7 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
 
       <form onSubmit={save} className="add-form">
         <label>
-          Name
+          Task
           <input
             type="text"
             value={title}
@@ -661,6 +734,43 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
             required
           />
         </label>
+
+        <label>
+          Date
+          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
+          <span className="hint">
+            Leave empty for a timeless task - no deadline, surfaced over time.
+          </span>
+        </label>
+
+        {date && (
+          <label>
+            Time (optional)
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+        )}
+
+        {date && time && (
+          <div className="field">
+            <span className="field-label">How long will it take?</span>
+            <div className="duration-picker">
+              {DURATIONS.map((d) => (
+                <label key={d.value} className={`duration-opt${duration === d.value ? ' active' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={duration === d.value}
+                    onChange={() => setDuration(d.value)}
+                  />
+                  <span>{d.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showAssign && (
           <label>
@@ -686,18 +796,6 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
             />
           </label>
         )}
-
-        <label>
-          Date
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
-          </span>
-        </label>
 
         <div className="field">
           <label className="switch-row">
@@ -934,6 +1032,8 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
           {
             title: t.title,
             due_date: nextDate,
+            due_time: t.due_time,
+            duration: t.duration,
             repeat_interval: t.repeat_interval,
             repeat_unit: t.repeat_unit,
             repeat_anchor: anchor,
@@ -1597,6 +1697,8 @@ function Shell({ session }) {
         {
           title: t.title,
           due_date: next,
+          due_time: t.due_time,
+          duration: t.duration,
           repeat_interval: t.repeat_interval,
           repeat_unit: t.repeat_unit,
           repeat_anchor: anchor,

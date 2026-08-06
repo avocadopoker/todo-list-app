@@ -762,3 +762,48 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   border-radius: 20px;
 }
 .cal-add:hover { background: var(--red-press); }
+
+/* ---------- time tag ---------- */
+.time-tag {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+/* ---------- duration picker (6 single-select boxes) ---------- */
+.duration-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.duration-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.duration-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.duration-opt.active {
+  border-color: var(--red);
+  background: var(--red-tint);
+  color: var(--red-press);
+}
