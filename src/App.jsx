@@ -376,17 +376,18 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
+function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
   return (
     <li className={`task ${selected ? 'is-selected' : ''}`}>
       <span className="spine" aria-hidden="true" />
-      <label className="task-check">
+      <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input
           type="checkbox"
-          checked={selected}
-          onChange={() => onSelect(task.id)}
+          checked={!!selected}
+          disabled={readOnly}
+          onChange={() => onSelect && onSelect(task.id)}
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
@@ -408,6 +409,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
             </span>
           )}
           {timeless && <span className="timeless-tag">timeless pick</span>}
+          {groupName && <span className="group-tag">👥 {groupName}</span>}
           {fromName && <span className="from-tag">from {fromName}</span>}
           {task.repeat_unit && (
             <span className="repeat-tag">
@@ -452,7 +454,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, onEdit }) {
 }
 
 /* ---------- add task ---------- */
-function AddTask({ onDone, onCancel, people, myId, presetDate }) {
+function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(presetDate || '')
   const [time, setTime] = useState('')
@@ -460,13 +462,13 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
   const [recurring, setRecurring] = useState(false)
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
-  const [assignee, setAssignee] = useState(myId)
+  const [assignee, setAssignee] = useState(`u:${myId}`)
   const [reward, setReward] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
-  const showAssign = people && people.length > 1
-  const assigningToOther = assignee !== myId
+  const showAssign = (people && people.length > 1) || (groups && groups.length > 0)
+  const assigningToOther = assignee !== `u:${myId}`
 
   // a time only makes sense alongside a date - clearing the date clears it too
   function changeDate(v) {
@@ -482,6 +484,8 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
     setErr('')
     const due = recurring ? date || today() : date || null
     const useTime = due ? time : ''
+    const isGroup = assignee.startsWith('g:')
+    const targetId = assignee.slice(2)
     const { error } = await supabase.from('tasks').insert([
       {
         title: name,
@@ -492,7 +496,8 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
         repeat_unit: recurring ? repeatUnit : null,
         repeat_anchor: recurring && due ? Number(due.slice(8, 10)) : null,
         reward: assigningToOther && reward.trim() ? reward.trim() : null,
-        user_id: assignee,
+        user_id: isGroup ? null : targetId,
+        assigned_group_id: isGroup ? targetId : null,
       },
     ])
     setBusy(false)
@@ -564,11 +569,25 @@ function AddTask({ onDone, onCancel, people, myId, presetDate }) {
             Task for
             <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
               {people.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={`u:${p.id}`}>
                   {p.id === myId ? `${p.name || 'Me'} (me)` : p.name}
                 </option>
               ))}
+              {groups && groups.length > 0 && (
+                <optgroup label="Whole group">
+                  {groups.map((g) => (
+                    <option key={g.id} value={`g:${g.id}`}>
+                      {g.name} (everyone)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {assignee.startsWith('g:') && (
+              <span className="hint">
+                Anyone in this group can mark it done - it clears for everyone at once.
+              </span>
+            )}
           </label>
         )}
 
@@ -661,7 +680,7 @@ function StreakBurst({ n, onEnd }) {
 }
 
 /* ---------- edit task ---------- */
-function EditTask({ task, onDone, onCancel, people, myId }) {
+function EditTask({ task, onDone, onCancel, people, groups, myId }) {
   const [title, setTitle] = useState(task.title)
   const [date, setDate] = useState(task.due_date || '')
   const [time, setTime] = useState(task.due_time ? task.due_time.slice(0, 5) : '')
@@ -669,13 +688,15 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
   const [recurring, setRecurring] = useState(!!task.repeat_unit)
   const [repeatInterval, setRepeatInterval] = useState(task.repeat_interval || 1)
   const [repeatUnit, setRepeatUnit] = useState(task.repeat_unit || 'week')
-  const [assignee, setAssignee] = useState(task.user_id)
+  const [assignee, setAssignee] = useState(
+    task.assigned_group_id ? `g:${task.assigned_group_id}` : `u:${task.user_id}`
+  )
   const [reward, setReward] = useState(task.reward || '')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
-  const showAssign = people && people.length > 1
-  const assigningToOther = assignee !== myId
+  const showAssign = (people && people.length > 1) || (groups && groups.length > 0)
+  const assigningToOther = assignee !== `u:${myId}`
 
   function changeDate(v) {
     setDate(v)
@@ -691,6 +712,8 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
     const due = recurring ? date || today() : date || null
     const useTime = due ? time : ''
     const willBeHabit = recurring && (repeatUnit === 'day' || repeatUnit === 'week' || repeatUnit === 'month')
+    const isGroup = assignee.startsWith('g:')
+    const targetId = assignee.slice(2)
     const { error } = await supabase
       .from('tasks')
       .update({
@@ -705,7 +728,8 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
         // longer applies, so it's cleared
         streak: willBeHabit ? task.streak : null,
         reward: assigningToOther && reward.trim() ? reward.trim() : null,
-        user_id: assignee,
+        user_id: isGroup ? null : targetId,
+        assigned_group_id: isGroup ? targetId : null,
       })
       .eq('id', task.id)
     setBusy(false)
@@ -777,11 +801,25 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
             Task for
             <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
               {people.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={`u:${p.id}`}>
                   {p.id === myId ? `${p.name || 'Me'} (me)` : p.name}
                 </option>
               ))}
+              {groups && groups.length > 0 && (
+                <optgroup label="Whole group">
+                  {groups.map((g) => (
+                    <option key={g.id} value={`g:${g.id}`}>
+                      {g.name} (everyone)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {assignee.startsWith('g:') && (
+              <span className="hint">
+                Anyone in this group can mark it done - it clears for everyone at once.
+              </span>
+            )}
           </label>
         )}
 
@@ -855,7 +893,7 @@ function EditTask({ task, onDone, onCancel, people, myId }) {
 }
 
 /* ---------- calendar view ---------- */
-function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask, myId, nameFor }) {
+function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask, myId, nameFor, groupNameFor, readOnly }) {
   const t0 = today()
   const now = new Date(t0 + 'T00:00:00')
   const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() })
@@ -957,9 +995,11 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
       <div className="cal-day-panel">
         <div className="cal-day-head" ref={headRef}>
           <span>{fullDayLabel(selectedDate)}</span>
-          <button className="cal-add" onClick={() => onAddForDate(selectedDate)}>
-            + Add
-          </button>
+          {!readOnly && (
+            <button className="cal-add" onClick={() => onAddForDate(selectedDate)}>
+              + Add
+            </button>
+          )}
         </div>
         {dayTasks.length === 0 ? (
           <p className="empty">Nothing scheduled.</p>
@@ -970,12 +1010,14 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
                 key={t.id}
                 task={t}
                 selected={selected.has(t.id)}
-                onSelect={toggleSelect}
+                onSelect={readOnly ? undefined : toggleSelect}
                 timeless={false}
                 fromName={
                   t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
                 }
-                onEdit={onEditTask}
+                groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
+                onEdit={readOnly ? undefined : onEditTask}
+                readOnly={readOnly}
               />
             ))}
           </ul>
@@ -989,13 +1031,22 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
 }
 
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
+function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
   const [addDate, setAddDate] = useState(null)
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
+  const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
+
+  const readOnly = viewingUserId !== null
+  // Show exactly what that person sees: their own tasks plus anything
+  // assigned to a group they're in (which, if I can see it at all, is a
+  // group I'm also a member of).
+  const scopedTasks = readOnly
+    ? tasks.filter((t) => t.user_id === viewingUserId || t.assigned_group_id)
+    : tasks.filter((t) => t.user_id === myId || t.assigned_group_id)
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1010,10 +1061,10 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
   // occurrence (+1); missed-independent one-offs are simply removed.
   async function doneSelected() {
     const t0 = today()
-    const chosen = tasks.filter((t) => selected.has(t.id))
+    const chosen = scopedTasks.filter((t) => selected.has(t.id))
 
     // required Today items (dated <= today) that are NOT being cleared now
-    const requiredToday = tasks.filter((t) => t.due_date && t.due_date <= t0)
+    const requiredToday = scopedTasks.filter((t) => t.due_date && t.due_date <= t0)
     const clearedNow = requiredToday.filter((t) => selected.has(t.id))
     const remaining = requiredToday.length - clearedNow.length
 
@@ -1040,6 +1091,7 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
             streak: nextStreak,
             reward: t.reward,
             user_id: t.user_id,
+            assigned_group_id: t.assigned_group_id,
             created_by: t.created_by,
           },
         ])
@@ -1067,6 +1119,7 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
     return (
       <AddTask
         people={people}
+        groups={groups}
         myId={myId}
         presetDate={addDate}
         onCancel={() => {
@@ -1086,6 +1139,7 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
       <EditTask
         task={editing}
         people={people}
+        groups={groups}
         myId={myId}
         onCancel={() => setEditing(null)}
         onDone={() => {
@@ -1095,11 +1149,11 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
       />
     )
 
-  let visible = sortTasks(filterForView(tasks, view))
+  let visible = sortTasks(filterForView(scopedTasks, view))
 
   let timelessPick = null
   if (view === 'today') {
-    const timeless = tasks.filter((t) => !t.due_date)
+    const timeless = scopedTasks.filter((t) => !t.due_date)
     if (timeless.length) {
       timelessPick = timeless[dailySeed() % timeless.length]
       if (!visible.some((v) => v.id === timelessPick.id))
@@ -1108,26 +1162,68 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
   }
 
   const grouped = view === 'next7'
-  const groups = grouped
+  const dayGroups = grouped
     ? groupByDay(visible, view === 'next7' ? weekdayLabel : fullDayLabel)
     : null
+
+  const groupNameFor = (id) => (groups.find((g) => g.id === id) || {}).name
 
   const renderRow = (t) => (
     <TaskRow
       key={t.id}
       task={t}
       selected={selected.has(t.id)}
-      onSelect={toggleSelect}
+      onSelect={readOnly ? undefined : toggleSelect}
       timeless={timelessPick && t.id === timelessPick.id && !t.due_date}
       fromName={t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null}
-      onEdit={setEditing}
+      groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
+      onEdit={readOnly ? undefined : setEditing}
+      readOnly={readOnly}
     />
   )
 
+  const viewingName = readOnly
+    ? (viewablePeople.find((p) => p.id === viewingUserId) || {}).name
+    : null
+
   return (
     <div className="tdl">
-      {profile && profile.clear_streak > 0 && (
-        <div className="day-streak">🔥 {profile.clear_streak} day streak</div>
+      {viewablePeople && viewablePeople.length > 0 ? (
+        <div className="viewer-row">
+          <select
+            className="viewer-select"
+            value={viewingUserId || 'me'}
+            onChange={(e) =>
+              setViewingUserId(e.target.value === 'me' ? null : e.target.value)
+            }
+          >
+            <option value="me">My tasks</option>
+            {viewablePeople.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}'s tasks
+              </option>
+            ))}
+          </select>
+          {readOnly ? (
+            <span className="readonly-tag">👁 Read-only</span>
+          ) : (
+            profile && (
+              <span className="day-streak inline">
+                {profile.clear_streak > 0
+                  ? `🔥 ${profile.clear_streak} day streak`
+                  : '0 Day streak 😭'}
+              </span>
+            )
+          )}
+        </div>
+      ) : (
+        profile && (
+          <div className="day-streak">
+            {profile.clear_streak > 0
+              ? `🔥 ${profile.clear_streak} day streak`
+              : '0 Day streak 😭'}
+          </div>
+        )
       )}
 
       <div className="view-switch">
@@ -1144,24 +1240,28 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
 
       {view === 'calendar' ? (
         <CalendarView
-          tasks={tasks}
+          tasks={scopedTasks}
           selected={selected}
-          toggleSelect={toggleSelect}
+          toggleSelect={readOnly ? () => {} : toggleSelect}
           onAddForDate={(d) => {
             setAddDate(d)
             setAdding(true)
           }}
-          onEditTask={setEditing}
+          onEditTask={readOnly ? () => {} : setEditing}
           myId={myId}
           nameFor={nameFor}
+          groupNameFor={groupNameFor}
+          readOnly={readOnly}
         />
       ) : loading ? (
         <p className="empty">Loading...</p>
       ) : visible.length === 0 ? (
-        <p className="empty">Nothing here. Add something with the + button.</p>
+        <p className="empty">
+          {readOnly ? `Nothing here for ${viewingName}.` : 'Nothing here. Add something with the + button.'}
+        </p>
       ) : grouped ? (
         <div className="day-groups">
-          {groups.map((g) => (
+          {dayGroups.map((g) => (
             <div key={g.date} className="day-group">
               <div className="day-sep">{g.label}</div>
               <ul className="task-list">{g.tasks.map(renderRow)}</ul>
@@ -1172,11 +1272,13 @@ function Tdl({ tasks, loading, refresh, people, myId, nameFor, profile }) {
         <ul className="task-list">{visible.map(renderRow)}</ul>
       )}
 
-      <button className="fab" onClick={() => setAdding(true)} aria-label="Add task">
-        +
-      </button>
+      {!readOnly && (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add task">
+          +
+        </button>
+      )}
 
-      {selected.size > 0 && (
+      {!readOnly && selected.size > 0 && (
         <div className="delete-bar done-bar">
           <span>{selected.size} selected</span>
           <button onClick={doneSelected}>{selected.size} Done</button>
@@ -1344,7 +1446,7 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
 }
 
 /* ---------- recurring screen ---------- */
-function Recurring({ tasks, loading, refresh, myId, nameFor, people }) {
+function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
 
@@ -1367,11 +1469,14 @@ function Recurring({ tasks, loading, refresh, myId, nameFor, people }) {
     refresh()
   }
 
+  const groupNameFor = (id) => (groups.find((g) => g.id === id) || {}).name
+
   if (editing)
     return (
       <EditTask
         task={editing}
         people={people}
+        groups={groups}
         myId={myId}
         onCancel={() => setEditing(null)}
         onDone={() => {
@@ -1402,6 +1507,7 @@ function Recurring({ tasks, loading, refresh, myId, nameFor, people }) {
               fromName={
                 t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
               }
+              groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
               onEdit={setEditing}
             />
           ))}
@@ -1501,6 +1607,16 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
   }
 
   const membersOf = (gid) => members.filter((m) => m.group_id === gid)
+  const myRowIn = (gid) => members.find((m) => m.group_id === gid && m.user_id === myId)
+
+  async function toggleShareTasks(gid, next) {
+    await supabase
+      .from('group_members')
+      .update({ share_tasks: next })
+      .eq('group_id', gid)
+      .eq('user_id', myId)
+    refresh()
+  }
 
   return (
     <div className="setup">
@@ -1562,6 +1678,14 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
                   </span>
                 ))}
               </div>
+              <label className="switch-row share-row">
+                <input
+                  type="checkbox"
+                  checked={!!myRowIn(g.id)?.share_tasks}
+                  onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
+                />
+                <span>Let this group view my tasks (read-only)</span>
+              </label>
               {owner && (
                 <div className="invite-row">
                   <input
@@ -1705,6 +1829,7 @@ function Shell({ session }) {
           streak: habit ? 0 : null,
           reward: t.reward,
           user_id: t.user_id,
+          assigned_group_id: t.assigned_group_id,
           created_by: t.created_by,
         },
       ])
@@ -1775,10 +1900,15 @@ function Shell({ session }) {
     }
     setMembers(membersWithNames)
 
-    // roll any missed recurring occurrences forward (once per app session)
+    // roll any missed recurring occurrences forward (once per app session).
+    // Scoped to tasks I can actually write to - shared-in tasks from
+    // someone else roll forward under their own session, not mine.
     if (!rolledRef.current) {
       rolledRef.current = true
-      const rolled = await rollRecurring(taskData)
+      const myWritableTasks = taskData.filter(
+        (t) => t.user_id === myId || t.assigned_group_id
+      )
+      const rolled = await rollRecurring(myWritableTasks)
       if (rolled) {
         const r = await supabase.from('tasks').select('*')
         taskData = r.data || []
@@ -1787,8 +1917,11 @@ function Shell({ session }) {
     }
 
     // daily clear-streak resets if a prior day was left uncleared
+    // (scoped to my own + group tasks - tasks shared into view from
+    // someone else shouldn't affect my personal streak)
     const t0 = today()
-    const hasOverdue = taskData.some((t) => t.due_date && t.due_date < t0)
+    const myScopedTasks = taskData.filter((t) => t.user_id === myId || t.assigned_group_id)
+    const hasOverdue = myScopedTasks.some((t) => t.due_date && t.due_date < t0)
     if (prof && hasOverdue && prof.clear_streak > 0 && prof.clear_last !== t0) {
       await supabase.from('profiles').update({ clear_streak: 0 }).eq('id', myId)
       prof = { ...prof, clear_streak: 0 }
@@ -1829,6 +1962,15 @@ function Shell({ session }) {
   })
   const people = Object.values(peopleMap)
   const nameFor = (id) => peopleMap[id]?.name || 'someone'
+
+  // people who've opted, in some shared group, to let me view their tasks
+  const viewableMap = {}
+  members.forEach((m) => {
+    if (m.share_tasks && m.user_id !== myId && !viewableMap[m.user_id]) {
+      viewableMap[m.user_id] = { id: m.user_id, name: m.name || 'Member' }
+    }
+  })
+  const viewablePeople = Object.values(viewableMap)
 
   return (
     <div className="app">
@@ -1871,9 +2013,11 @@ function Shell({ session }) {
             loading={loading}
             refresh={refresh}
             people={people}
+            groups={groups}
             myId={myId}
             nameFor={nameFor}
             profile={profile}
+            viewablePeople={viewablePeople}
           />
         )}
         {screen === 'recurring' && (
@@ -1884,6 +2028,7 @@ function Shell({ session }) {
             myId={myId}
             nameFor={nameFor}
             people={people}
+            groups={groups}
           />
         )}
         {screen === 'ideas' && (

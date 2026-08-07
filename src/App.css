@@ -807,3 +807,52 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   background: var(--red-tint);
   color: var(--red-press);
 }
+
+/* ---------- task view switcher (Me / shared-in) ---------- */
+.viewer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.viewer-select {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 7px 30px 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238a8285' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  appearance: none;
+}
+.viewer-select:focus { outline: none; border-color: var(--red); }
+.day-streak.inline { margin-bottom: 0; }
+.readonly-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+/* checkbox rendered but inert for a read-only (someone else's) task list */
+.task-check.read-only { cursor: default; }
+.task-check.read-only .box { opacity: 0.45; }
+.task-check.read-only input { cursor: default; }
+
+/* ---------- share-my-tasks toggle in a group card ---------- */
+.share-row {
+  margin-top: 4px;
+  font-size: 0.85rem !important;
+  color: var(--muted) !important;
+}
