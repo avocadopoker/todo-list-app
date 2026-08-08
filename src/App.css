@@ -428,12 +428,29 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  padding: 0;
+  overflow: hidden;
+}
+.group-head { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
+.group-head-btn {
+  width: 100%;
+  justify-content: space-between;
+  border: none;
+  background: none;
   padding: 16px 18px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+.group-card.open .group-head-btn { border-bottom: 1px solid var(--line); }
+.group-caret { color: var(--muted); font-size: 0.85rem; }
+.group-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 14px 18px 18px;
 }
-.group-head { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
 .owner-tag {
   font-size: 0.65rem;
   font-weight: 700;
@@ -443,6 +460,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   background: var(--red-tint);
   padding: 2px 8px;
   border-radius: 20px;
+  align-self: flex-start;
 }
 .member-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -812,6 +830,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .viewer-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 14px;
   flex-wrap: wrap;
@@ -856,3 +875,58 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   font-size: 0.85rem !important;
   color: var(--muted) !important;
 }
+
+/* ---------- lists management (inside Ideas tab) ---------- */
+.lists-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.lists-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lists-manage-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+.list-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.list-remove:hover { color: var(--red); }
+
+/* ---------- custom list items ---------- */
+.idea-done .task-title {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+}
+.add-item-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.add-item-row input { flex: 1; }
+
+/* subtab bar for Ideas / custom lists - same look as the main view-switch
+   but allowed to wrap onto multiple lines if there are many lists */
+.lists-switch { flex-wrap: wrap; row-gap: 4px; }

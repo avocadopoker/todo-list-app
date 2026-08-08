@@ -130,6 +130,12 @@ function repeatLabel(interval, unit) {
   if (n === 1) return `every ${base}`
   return `every ${n} ${base}s`
 }
+// approximate span in days, used to sort recurring tasks quick -> long
+function recurrenceDays(interval, unit) {
+  const n = Number(interval) || 1
+  const perUnit = { day: 1, week: 7, month: 30, year: 365 }
+  return n * (perUnit[unit] || 0)
+}
 
 const DURATIONS = [
   { value: '1', label: '1h' },
@@ -1190,6 +1196,17 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     <div className="tdl">
       {viewablePeople && viewablePeople.length > 0 ? (
         <div className="viewer-row">
+          {readOnly ? (
+            <span className="readonly-tag">👁 Viewing {viewingName}</span>
+          ) : (
+            profile && (
+              <span className="day-streak inline">
+                {profile.clear_streak > 0
+                  ? `🔥 ${profile.clear_streak} day streak`
+                  : '0 Day streak 😭'}
+              </span>
+            )
+          )}
           <select
             className="viewer-select"
             value={viewingUserId || 'me'}
@@ -1204,17 +1221,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
               </option>
             ))}
           </select>
-          {readOnly ? (
-            <span className="readonly-tag">👁 Read-only</span>
-          ) : (
-            profile && (
-              <span className="day-streak inline">
-                {profile.clear_streak > 0
-                  ? `🔥 ${profile.clear_streak} day streak`
-                  : '0 Day streak 😭'}
-              </span>
-            )
-          )}
         </div>
       ) : (
         profile && (
@@ -1291,13 +1297,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 }
 
 /* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
+function Ideas({ ideas, loading, refresh, groups, myId, nameFor, lists }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [target, setTarget] = useState('me')
   const [selected, setSelected] = useState(new Set())
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [newListName, setNewListName] = useState('')
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1334,6 +1341,20 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
   async function deleteSelected() {
     await supabase.from('ideas').delete().in('id', [...selected])
     setSelected(new Set())
+    refresh()
+  }
+
+  async function createList(e) {
+    e.preventDefault()
+    const name = newListName.trim()
+    if (!name) return
+    await supabase.from('lists').insert([{ name, user_id: myId }])
+    setNewListName('')
+    refresh()
+  }
+
+  async function deleteList(id) {
+    await supabase.from('lists').delete().eq('id', id)
     refresh()
   }
 
@@ -1431,6 +1452,41 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
         </ul>
       )}
 
+      <section className="lists-manage">
+        <span className="section-title">Your lists</span>
+        {lists.length === 0 ? (
+          <p className="setup-note">
+            No lists yet - create one below, and it shows up as its own tab.
+          </p>
+        ) : (
+          <ul className="lists-manage-list">
+            {lists.map((l) => (
+              <li key={l.id}>
+                <span>{l.name}</span>
+                <button
+                  className="list-remove"
+                  onClick={() => deleteList(l.id)}
+                  aria-label={`Delete ${l.name}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={createList} className="new-group-row">
+          <input
+            type="text"
+            placeholder="New list name"
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+          />
+          <button type="submit" className="btn-primary">
+            Create
+          </button>
+        </form>
+      </section>
+
       <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
         +
       </button>
@@ -1445,14 +1501,164 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
   )
 }
 
-/* ---------- recurring screen ---------- */
+/* ---------- a single custom checklist ---------- */
+function CustomList({ list, items, refresh }) {
+  const [adding, setAdding] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const sorted = [...items].sort((a, b) =>
+    (a.created_at || '').localeCompare(b.created_at || '')
+  )
+
+  async function addItem(e) {
+    e.preventDefault()
+    const title = text.trim()
+    if (!title) return
+    setBusy(true)
+    await supabase.from('list_items').insert([{ list_id: list.id, title }])
+    setText('')
+    setBusy(false)
+    setAdding(false)
+    refresh()
+  }
+
+  async function toggleItem(item) {
+    await supabase
+      .from('list_items')
+      .update({ is_complete: !item.is_complete })
+      .eq('id', item.id)
+    refresh()
+  }
+
+  async function removeItem(id) {
+    await supabase.from('list_items').delete().eq('id', id)
+    refresh()
+  }
+
+  return (
+    <div className="ideas">
+      {sorted.length === 0 ? (
+        <p className="empty">Nothing on this list yet.</p>
+      ) : (
+        <ul className="task-list">
+          {sorted.map((item) => (
+            <li key={item.id} className={`task ${item.is_complete ? 'idea-done' : ''}`}>
+              <span className="spine" aria-hidden="true" />
+              <label className="task-check">
+                <input
+                  type="checkbox"
+                  checked={item.is_complete}
+                  onChange={() => toggleItem(item)}
+                  aria-label={`Mark ${item.title} done`}
+                />
+                <span className="box" />
+              </label>
+              <div className="task-body">
+                <span className="task-title">{item.title}</span>
+              </div>
+              <button
+                className="list-remove"
+                onClick={() => removeItem(item.id)}
+                aria-label={`Delete ${item.title}`}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form onSubmit={addItem} className="add-item-row">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add an item..."
+            autoFocus
+          />
+          <button type="submit" className="btn-primary" disabled={busy}>
+            Add
+          </button>
+          <button type="button" className="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add item">
+          +
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ---------- Lists screen: Ideas + custom checklists as subtabs ---------- */
+function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, nameFor }) {
+  const [activeTab, setActiveTab] = useState('ideas')
+
+  const activeList = activeTab !== 'ideas' ? lists.find((l) => l.id === activeTab) : null
+
+  // a list may have been deleted while it was open - fall back to Ideas
+  useEffect(() => {
+    if (activeTab !== 'ideas' && !lists.some((l) => l.id === activeTab)) {
+      setActiveTab('ideas')
+    }
+  }, [activeTab, lists])
+
+  return (
+    <div className="tdl">
+      <div className="view-switch lists-switch">
+        <button
+          className={activeTab === 'ideas' ? 'active' : ''}
+          onClick={() => setActiveTab('ideas')}
+        >
+          Ideas
+        </button>
+        {lists.map((l) => (
+          <button
+            key={l.id}
+            className={activeTab === l.id ? 'active' : ''}
+            onClick={() => setActiveTab(l.id)}
+          >
+            {l.name}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'ideas' ? (
+        <Ideas
+          ideas={ideas}
+          loading={loading}
+          refresh={refresh}
+          groups={groups}
+          myId={myId}
+          nameFor={nameFor}
+          lists={lists}
+        />
+      ) : activeList ? (
+        <CustomList
+          list={activeList}
+          items={listItems.filter((it) => it.list_id === activeList.id)}
+          refresh={refresh}
+        />
+      ) : null}
+    </div>
+  )
+}
 function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
 
   const recurring = tasks
     .filter((t) => t.repeat_unit)
-    .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+    .sort((a, b) => {
+      const da = recurrenceDays(a.repeat_interval, a.repeat_unit)
+      const db = recurrenceDays(b.repeat_interval, b.repeat_unit)
+      if (da !== db) return da - db
+      return (a.due_date || '').localeCompare(b.due_date || '')
+    })
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1608,6 +1814,7 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
 
   const membersOf = (gid) => members.filter((m) => m.group_id === gid)
   const myRowIn = (gid) => members.find((m) => m.group_id === gid && m.user_id === myId)
+  const [expandedGroupId, setExpandedGroupId] = useState(null)
 
   async function toggleShareTasks(gid, next) {
     await supabase
@@ -1665,40 +1872,50 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
         )}
         {groups.map((g) => {
           const owner = g.owner_id === myId
+          const open = expandedGroupId === g.id
           return (
-            <div key={g.id} className="group-card">
-              <div className="group-head">
+            <div key={g.id} className={`group-card${open ? ' open' : ''}`}>
+              <button
+                className="group-head group-head-btn"
+                onClick={() => setExpandedGroupId(open ? null : g.id)}
+                aria-expanded={open}
+              >
                 <strong>{g.name}</strong>
-                {owner && <span className="owner-tag">owner</span>}
-              </div>
-              <div className="member-chips">
-                {membersOf(g.id).map((m) => (
-                  <span key={m.user_id} className="chip">
-                    {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
-                  </span>
-                ))}
-              </div>
-              <label className="switch-row share-row">
-                <input
-                  type="checkbox"
-                  checked={!!myRowIn(g.id)?.share_tasks}
-                  onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
-                />
-                <span>Let this group view my tasks (read-only)</span>
-              </label>
-              {owner && (
-                <div className="invite-row">
-                  <input
-                    type="email"
-                    placeholder="Invite by email"
-                    value={inviteEmail[g.id] || ''}
-                    onChange={(e) =>
-                      setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
-                    }
-                  />
-                  <button className="btn-outline" onClick={() => sendInvite(g)}>
-                    Invite
-                  </button>
+                <span className="group-caret">{open ? '▾' : '▸'}</span>
+              </button>
+              {open && (
+                <div className="group-body">
+                  {owner && <span className="owner-tag">owner</span>}
+                  <div className="member-chips">
+                    {membersOf(g.id).map((m) => (
+                      <span key={m.user_id} className="chip">
+                        {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
+                      </span>
+                    ))}
+                  </div>
+                  <label className="switch-row share-row">
+                    <input
+                      type="checkbox"
+                      checked={!!myRowIn(g.id)?.share_tasks}
+                      onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
+                    />
+                    <span>Let this group view my tasks (read-only)</span>
+                  </label>
+                  {owner && (
+                    <div className="invite-row">
+                      <input
+                        type="email"
+                        placeholder="Invite by email"
+                        value={inviteEmail[g.id] || ''}
+                        onChange={(e) =>
+                          setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
+                        }
+                      />
+                      <button className="btn-outline" onClick={() => sendInvite(g)}>
+                        Invite
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1791,6 +2008,8 @@ function Shell({ session }) {
   const [screen, setScreen] = useState('tdl')
   const [tasks, setTasks] = useState(cached?.tasks || [])
   const [ideas, setIdeas] = useState(cached?.ideas || [])
+  const [lists, setLists] = useState(cached?.lists || [])
+  const [listItems, setListItems] = useState(cached?.listItems || [])
   const [profile, setProfile] = useState(cached?.profile || null)
   const [groups, setGroups] = useState(cached?.groups || [])
   const [members, setMembers] = useState(cached?.members || [])
@@ -1846,7 +2065,7 @@ function Shell({ session }) {
     lastFetchRef.current = Date.now()
 
     // Fire every read at once instead of waiting for them in sequence.
-    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes] =
+    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes, listRes, listItemRes] =
       await Promise.all([
         supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
         supabase.from('tasks').select('*'),
@@ -1854,6 +2073,8 @@ function Shell({ session }) {
         supabase.from('groups').select('*'),
         supabase.from('group_members').select('*'),
         supabase.from('group_invites').select('*').eq('status', 'pending'),
+        supabase.from('lists').select('*'),
+        supabase.from('list_items').select('*'),
       ])
 
     let prof = profRes.data
@@ -1862,6 +2083,8 @@ function Shell({ session }) {
     // paint what we have right away; the rest is cheap follow-up work
     setTasks(taskData)
     setIdeas(ideaRes.data || [])
+    setLists(listRes.data || [])
+    setListItems(listItemRes.data || [])
     setGroups(groupRes.data || [])
     setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
     if (prof) setProfile(prof)
@@ -1931,6 +2154,8 @@ function Shell({ session }) {
     saveCache(myId, {
       tasks: taskData,
       ideas: ideaRes.data || [],
+      lists: listRes.data || [],
+      listItems: listItemRes.data || [],
       groups: groupRes.data || [],
       members: membersWithNames,
       invites: (inviteRes.data || []).filter((i) => i.invited_email === myEmail),
@@ -1995,7 +2220,7 @@ function Shell({ session }) {
             className={screen === 'ideas' ? 'active' : ''}
             onClick={() => setScreen('ideas')}
           >
-            Ideas
+            Lists
           </button>
           <button
             className={screen === 'setup' ? 'active' : ''}
@@ -2032,8 +2257,10 @@ function Shell({ session }) {
           />
         )}
         {screen === 'ideas' && (
-          <Ideas
+          <ListsScreen
             ideas={ideas}
+            lists={lists}
+            listItems={listItems}
             loading={loading}
             refresh={refresh}
             groups={groups}
