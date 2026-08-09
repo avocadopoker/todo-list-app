@@ -1297,14 +1297,13 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 }
 
 /* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor, lists }) {
+function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [target, setTarget] = useState('me')
   const [selected, setSelected] = useState(new Set())
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const [newListName, setNewListName] = useState('')
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1341,20 +1340,6 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, lists }) {
   async function deleteSelected() {
     await supabase.from('ideas').delete().in('id', [...selected])
     setSelected(new Set())
-    refresh()
-  }
-
-  async function createList(e) {
-    e.preventDefault()
-    const name = newListName.trim()
-    if (!name) return
-    await supabase.from('lists').insert([{ name, user_id: myId }])
-    setNewListName('')
-    refresh()
-  }
-
-  async function deleteList(id) {
-    await supabase.from('lists').delete().eq('id', id)
     refresh()
   }
 
@@ -1452,41 +1437,6 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, lists }) {
         </ul>
       )}
 
-      <section className="lists-manage">
-        <span className="section-title">Your lists</span>
-        {lists.length === 0 ? (
-          <p className="setup-note">
-            No lists yet - create one below, and it shows up as its own tab.
-          </p>
-        ) : (
-          <ul className="lists-manage-list">
-            {lists.map((l) => (
-              <li key={l.id}>
-                <span>{l.name}</span>
-                <button
-                  className="list-remove"
-                  onClick={() => deleteList(l.id)}
-                  aria-label={`Delete ${l.name}`}
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form onSubmit={createList} className="new-group-row">
-          <input
-            type="text"
-            placeholder="New list name"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-          />
-          <button type="submit" className="btn-primary">
-            Create
-          </button>
-        </form>
-      </section>
-
       <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
         +
       </button>
@@ -1502,10 +1452,11 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, lists }) {
 }
 
 /* ---------- a single custom checklist ---------- */
-function CustomList({ list, items, refresh }) {
+function CustomList({ list, items, refresh, onDeleted }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const sorted = [...items].sort((a, b) =>
     (a.created_at || '').localeCompare(b.created_at || '')
@@ -1534,6 +1485,12 @@ function CustomList({ list, items, refresh }) {
   async function removeItem(id) {
     await supabase.from('list_items').delete().eq('id', id)
     refresh()
+  }
+
+  async function deleteThisList() {
+    await supabase.from('lists').delete().eq('id', list.id)
+    refresh()
+    onDeleted()
   }
 
   return (
@@ -1590,6 +1547,28 @@ function CustomList({ list, items, refresh }) {
           +
         </button>
       )}
+
+      <div className="list-delete-zone">
+        {confirmDelete ? (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              Delete "{list.name}" and everything on it? This can't be undone.
+            </p>
+            <div className="invite-actions">
+              <button className="btn-danger" onClick={deleteThisList}>
+                Yes, delete this list
+              </button>
+              <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
+            Delete this list
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -1597,6 +1576,8 @@ function CustomList({ list, items, refresh }) {
 /* ---------- Lists screen: Ideas + custom checklists as subtabs ---------- */
 function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, nameFor }) {
   const [activeTab, setActiveTab] = useState('ideas')
+  const [creating, setCreating] = useState(false)
+  const [newListName, setNewListName] = useState('')
 
   const activeList = activeTab !== 'ideas' ? lists.find((l) => l.id === activeTab) : null
 
@@ -1607,25 +1588,64 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
     }
   }, [activeTab, lists])
 
+  async function createList(e) {
+    e.preventDefault()
+    const name = newListName.trim()
+    if (!name) return
+    const { data, error } = await supabase
+      .from('lists')
+      .insert([{ name, user_id: myId }])
+      .select()
+    setNewListName('')
+    setCreating(false)
+    refresh()
+    if (!error && data && data[0]) setActiveTab(data[0].id)
+  }
+
   return (
     <div className="tdl">
-      <div className="view-switch lists-switch">
-        <button
-          className={activeTab === 'ideas' ? 'active' : ''}
-          onClick={() => setActiveTab('ideas')}
-        >
-          Ideas
-        </button>
-        {lists.map((l) => (
-          <button
-            key={l.id}
-            className={activeTab === l.id ? 'active' : ''}
-            onClick={() => setActiveTab(l.id)}
-          >
-            {l.name}
+      {creating ? (
+        <form onSubmit={createList} className="new-list-row">
+          <input
+            type="text"
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            placeholder="New list name"
+            autoFocus
+          />
+          <button type="submit" className="btn-primary">
+            Create
           </button>
-        ))}
-      </div>
+          <button type="button" className="ghost" onClick={() => setCreating(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <div className="view-switch lists-switch">
+          <button
+            className={activeTab === 'ideas' ? 'active' : ''}
+            onClick={() => setActiveTab('ideas')}
+          >
+            Ideas
+          </button>
+          {lists.map((l) => (
+            <button
+              key={l.id}
+              className={activeTab === l.id ? 'active' : ''}
+              onClick={() => setActiveTab(l.id)}
+            >
+              {l.name}
+            </button>
+          ))}
+          <button
+            className="lists-add-btn"
+            onClick={() => setCreating(true)}
+            aria-label="New list"
+          >
+            +
+          </button>
+        </div>
+      )}
 
       {activeTab === 'ideas' ? (
         <Ideas
@@ -1635,18 +1655,20 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
           groups={groups}
           myId={myId}
           nameFor={nameFor}
-          lists={lists}
         />
       ) : activeList ? (
         <CustomList
           list={activeList}
           items={listItems.filter((it) => it.list_id === activeList.id)}
           refresh={refresh}
+          onDeleted={() => setActiveTab('ideas')}
         />
       ) : null}
     </div>
   )
 }
+
+/* ---------- recurring screen ---------- */
 function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
@@ -1880,12 +1902,16 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
                 onClick={() => setExpandedGroupId(open ? null : g.id)}
                 aria-expanded={open}
               >
-                <strong>{g.name}</strong>
+                <span className="group-head-left">
+                  <strong>{g.name}</strong>
+                  <span className={owner ? 'owner-tag' : 'member-tag'}>
+                    {owner ? 'owner' : 'member'}
+                  </span>
+                </span>
                 <span className="group-caret">{open ? '▾' : '▸'}</span>
               </button>
               {open && (
                 <div className="group-body">
-                  {owner && <span className="owner-tag">owner</span>}
                   <div className="member-chips">
                     {membersOf(g.id).map((m) => (
                       <span key={m.user_id} className="chip">

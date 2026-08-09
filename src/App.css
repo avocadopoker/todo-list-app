@@ -930,3 +930,52 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 /* subtab bar for Ideas / custom lists - same look as the main view-switch
    but allowed to wrap onto multiple lines if there are many lists */
 .lists-switch { flex-wrap: wrap; row-gap: 4px; }
+
+/* ---------- lists subtab bar: add-list button ---------- */
+.lists-add-btn {
+  flex-shrink: 0;
+  width: 34px;
+  border: none;
+  background: var(--red);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 9px;
+  font-weight: 700;
+}
+.lists-add-btn:hover { background: var(--red-press); }
+.new-list-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.new-list-row input { flex: 1; }
+
+/* ---------- delete-this-list control ---------- */
+.list-delete-zone { margin-top: 40px; }
+.list-delete-btn {
+  display: block;
+  margin: 0 auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px;
+}
+.list-delete-btn:hover { color: var(--red); }
+
+/* ---------- group row: owner/member tag shown collapsed ---------- */
+.group-head-left { display: flex; align-items: center; gap: 10px; }
+.member-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
