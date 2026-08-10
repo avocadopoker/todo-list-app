@@ -1297,13 +1297,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 }
 
 /* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
+function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDeleted }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [target, setTarget] = useState('me')
   const [selected, setSelected] = useState(new Set())
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1343,7 +1344,14 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
     refresh()
   }
 
-  if (adding)
+  async function deleteThisList() {
+    await supabase.from('ideas').delete().eq('user_id', myId)
+    await supabase.from('profiles').update({ ideas_hidden: true }).eq('id', myId)
+    refresh()
+    onDeleted()
+  }
+
+  if (adding && !readOnly)
     return (
       <div className="add-screen">
         <div className="add-head">
@@ -1412,11 +1420,12 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
               className={`task idea ${selected.has(i.id) ? 'is-selected' : ''}`}
             >
               <span className="spine" aria-hidden="true" />
-              <label className="task-check">
+              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
                 <input
                   type="checkbox"
                   checked={selected.has(i.id)}
-                  onChange={() => toggleSelect(i.id)}
+                  disabled={readOnly}
+                  onChange={() => !readOnly && toggleSelect(i.id)}
                   aria-label={`Select ${i.title}`}
                 />
                 <span className="box" />
@@ -1437,14 +1446,40 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
         </ul>
       )}
 
-      <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
-        +
-      </button>
+      {!readOnly && (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
+          +
+        </button>
+      )}
 
-      {selected.size > 0 && (
+      {!readOnly && selected.size > 0 && (
         <div className="delete-bar">
           <span>{selected.size} selected</span>
           <button onClick={deleteSelected}>Delete selected</button>
+        </div>
+      )}
+
+      {!readOnly && (
+        <div className="list-delete-zone">
+          {confirmDelete ? (
+            <div className="delete-confirm">
+              <p className="setup-note">
+                Delete all your ideas and hide this tab? This can't be undone.
+              </p>
+              <div className="invite-actions">
+                <button className="btn-danger" onClick={deleteThisList}>
+                  Yes, delete this list
+                </button>
+                <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
+              Delete this list
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1452,7 +1487,7 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor }) {
 }
 
 /* ---------- a single custom checklist ---------- */
-function CustomList({ list, items, refresh, onDeleted }) {
+function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -1475,6 +1510,7 @@ function CustomList({ list, items, refresh, onDeleted }) {
   }
 
   async function toggleItem(item) {
+    if (readOnly) return
     await supabase
       .from('list_items')
       .update({ is_complete: !item.is_complete })
@@ -1502,10 +1538,11 @@ function CustomList({ list, items, refresh, onDeleted }) {
           {sorted.map((item) => (
             <li key={item.id} className={`task ${item.is_complete ? 'idea-done' : ''}`}>
               <span className="spine" aria-hidden="true" />
-              <label className="task-check">
+              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
                 <input
                   type="checkbox"
                   checked={item.is_complete}
+                  disabled={readOnly}
                   onChange={() => toggleItem(item)}
                   aria-label={`Mark ${item.title} done`}
                 />
@@ -1514,79 +1551,115 @@ function CustomList({ list, items, refresh, onDeleted }) {
               <div className="task-body">
                 <span className="task-title">{item.title}</span>
               </div>
-              <button
-                className="list-remove"
-                onClick={() => removeItem(item.id)}
-                aria-label={`Delete ${item.title}`}
-              >
-                ×
-              </button>
+              {!readOnly && (
+                <button
+                  className="list-remove"
+                  onClick={() => removeItem(item.id)}
+                  aria-label={`Delete ${item.title}`}
+                >
+                  ×
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {adding ? (
-        <form onSubmit={addItem} className="add-item-row">
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Add an item..."
-            autoFocus
-          />
-          <button type="submit" className="btn-primary" disabled={busy}>
-            Add
-          </button>
-          <button type="button" className="ghost" onClick={() => setAdding(false)}>
-            Cancel
-          </button>
-        </form>
-      ) : (
-        <button className="fab" onClick={() => setAdding(true)} aria-label="Add item">
-          +
-        </button>
-      )}
-
-      <div className="list-delete-zone">
-        {confirmDelete ? (
-          <div className="delete-confirm">
-            <p className="setup-note">
-              Delete "{list.name}" and everything on it? This can't be undone.
-            </p>
-            <div className="invite-actions">
-              <button className="btn-danger" onClick={deleteThisList}>
-                Yes, delete this list
-              </button>
-              <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
+      {!readOnly &&
+        (adding ? (
+          <form onSubmit={addItem} className="add-item-row">
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Add an item..."
+              autoFocus
+            />
+            <button type="submit" className="btn-primary" disabled={busy}>
+              Add
+            </button>
+            <button type="button" className="ghost" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+          </form>
         ) : (
-          <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
-            Delete this list
+          <button className="fab" onClick={() => setAdding(true)} aria-label="Add item">
+            +
           </button>
-        )}
-      </div>
+        ))}
+
+      {!readOnly && (
+        <div className="list-delete-zone">
+          {confirmDelete ? (
+            <div className="delete-confirm">
+              <p className="setup-note">
+                Delete "{list.name}" and everything on it? This can't be undone.
+              </p>
+              <div className="invite-actions">
+                <button className="btn-danger" onClick={deleteThisList}>
+                  Yes, delete this list
+                </button>
+                <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
+              Delete this list
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 /* ---------- Lists screen: Ideas + custom checklists as subtabs ---------- */
-function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, nameFor }) {
+function ListsScreen({
+  ideas,
+  lists,
+  listItems,
+  loading,
+  refresh,
+  groups,
+  myId,
+  nameFor,
+  profile,
+  viewablePeople,
+}) {
   const [activeTab, setActiveTab] = useState('ideas')
   const [creating, setCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
+  const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
-  const activeList = activeTab !== 'ideas' ? lists.find((l) => l.id === activeTab) : null
+  const readOnly = viewingUserId !== null
+  const ideasHidden = !readOnly && !!profile?.ideas_hidden
 
-  // a list may have been deleted while it was open - fall back to Ideas
+  // "Me": my own ideas/lists plus group-shared ideas. Someone else: their
+  // ideas/lists (their lists are always personal; their group ideas show
+  // too, same as "Me" - I'm in that group if I can see it at all).
+  const scopedIdeas = readOnly
+    ? ideas.filter((i) => i.user_id === viewingUserId || i.group_id)
+    : ideas.filter((i) => i.user_id === myId || i.group_id)
+  const scopedLists = readOnly
+    ? lists.filter((l) => l.user_id === viewingUserId)
+    : lists.filter((l) => l.user_id === myId)
+
+  const activeList =
+    activeTab !== 'ideas' ? scopedLists.find((l) => l.id === activeTab) : null
+
+  // a list may have been deleted, or we switched who we're viewing - fall
+  // back to Ideas whenever the active tab no longer resolves to anything
   useEffect(() => {
-    if (activeTab !== 'ideas' && !lists.some((l) => l.id === activeTab)) {
-      setActiveTab('ideas')
+    if (activeTab === 'ideas') {
+      if (ideasHidden) setActiveTab(scopedLists[0]?.id || 'ideas')
+      return
     }
-  }, [activeTab, lists])
+    if (!scopedLists.some((l) => l.id === activeTab)) {
+      setActiveTab(ideasHidden ? scopedLists[0]?.id || 'ideas' : 'ideas')
+    }
+  }, [activeTab, scopedLists, ideasHidden])
 
   async function createList(e) {
     e.preventDefault()
@@ -1602,8 +1675,35 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
     if (!error && data && data[0]) setActiveTab(data[0].id)
   }
 
+  const viewingName = readOnly
+    ? (viewablePeople.find((p) => p.id === viewingUserId) || {}).name
+    : null
+
   return (
     <div className="tdl">
+      {viewablePeople && viewablePeople.length > 0 && (
+        <div className="viewer-row">
+          <span className={readOnly ? 'readonly-tag' : 'day-streak inline'}>
+            {readOnly ? `👁 Viewing ${viewingName}` : 'My lists'}
+          </span>
+          <select
+            className="viewer-select"
+            value={viewingUserId || 'me'}
+            onChange={(e) => {
+              setViewingUserId(e.target.value === 'me' ? null : e.target.value)
+              setActiveTab('ideas')
+            }}
+          >
+            <option value="me">My lists</option>
+            {viewablePeople.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}'s lists
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {creating ? (
         <form onSubmit={createList} className="new-list-row">
           <input
@@ -1622,13 +1722,15 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
         </form>
       ) : (
         <div className="view-switch lists-switch">
-          <button
-            className={activeTab === 'ideas' ? 'active' : ''}
-            onClick={() => setActiveTab('ideas')}
-          >
-            Ideas
-          </button>
-          {lists.map((l) => (
+          {!ideasHidden && (
+            <button
+              className={activeTab === 'ideas' ? 'active' : ''}
+              onClick={() => setActiveTab('ideas')}
+            >
+              Ideas
+            </button>
+          )}
+          {scopedLists.map((l) => (
             <button
               key={l.id}
               className={activeTab === l.id ? 'active' : ''}
@@ -1637,24 +1739,28 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
               {l.name}
             </button>
           ))}
-          <button
-            className="lists-add-btn"
-            onClick={() => setCreating(true)}
-            aria-label="New list"
-          >
-            +
-          </button>
+          {!readOnly && (
+            <button
+              className="lists-add-btn"
+              onClick={() => setCreating(true)}
+              aria-label="New list"
+            >
+              +
+            </button>
+          )}
         </div>
       )}
 
-      {activeTab === 'ideas' ? (
+      {activeTab === 'ideas' && !ideasHidden ? (
         <Ideas
-          ideas={ideas}
+          ideas={scopedIdeas}
           loading={loading}
           refresh={refresh}
           groups={groups}
           myId={myId}
           nameFor={nameFor}
+          readOnly={readOnly}
+          onDeleted={() => setActiveTab(scopedLists[0]?.id || 'ideas')}
         />
       ) : activeList ? (
         <CustomList
@@ -1662,8 +1768,13 @@ function ListsScreen({ ideas, lists, listItems, loading, refresh, groups, myId, 
           items={listItems.filter((it) => it.list_id === activeList.id)}
           refresh={refresh}
           onDeleted={() => setActiveTab('ideas')}
+          readOnly={readOnly}
         />
-      ) : null}
+      ) : (
+        <p className="empty">
+          {readOnly ? `Nothing here for ${viewingName}.` : 'Add a list with the + button.'}
+        </p>
+      )}
     </div>
   )
 }
@@ -1767,6 +1878,11 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
     setSavingName(true)
     await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
     setSavingName(false)
+    refresh()
+  }
+
+  async function toggleIdeasVisible(show) {
+    await supabase.from('profiles').update({ ideas_hidden: !show }).eq('id', myId)
     refresh()
   }
 
@@ -1888,6 +2004,18 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
       )}
 
       <section className="setup-section">
+        <span className="section-title">Lists</span>
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            checked={!profile?.ideas_hidden}
+            onChange={(e) => toggleIdeasVisible(e.target.checked)}
+          />
+          <span>Show the Ideas tab</span>
+        </label>
+      </section>
+
+      <section className="setup-section">
         <span className="section-title">Groups</span>
         {groups.length === 0 && (
           <p className="setup-note">No groups yet. Create one below.</p>
@@ -1925,7 +2053,7 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
                       checked={!!myRowIn(g.id)?.share_tasks}
                       onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
                     />
-                    <span>Let this group view my tasks (read-only)</span>
+                    <span>Let this group view my tasks and lists (read-only)</span>
                   </label>
                   {owner && (
                     <div className="invite-row">
@@ -2292,6 +2420,8 @@ function Shell({ session }) {
             groups={groups}
             myId={myId}
             nameFor={nameFor}
+            profile={profile}
+            viewablePeople={viewablePeople}
           />
         )}
         {screen === 'setup' && (

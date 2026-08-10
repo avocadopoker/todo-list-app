@@ -953,18 +953,19 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .new-list-row input { flex: 1; }
 
 /* ---------- delete-this-list control ---------- */
-.list-delete-zone { margin-top: 40px; }
+.list-delete-zone { margin-top: 40px; display: flex; justify-content: center; }
 .list-delete-btn {
-  display: block;
-  margin: 0 auto;
-  background: none;
-  border: none;
-  color: var(--muted);
+  display: inline-block;
+  background: var(--paper);
+  border: 1.5px solid var(--red);
+  color: var(--red);
   font-size: 0.85rem;
   font-weight: 600;
-  padding: 10px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.list-delete-btn:hover { color: var(--red); }
+.list-delete-btn:hover { background: var(--red); color: #fff; }
 
 /* ---------- group row: owner/member tag shown collapsed ---------- */
 .group-head-left { display: flex; align-items: center; gap: 10px; }
