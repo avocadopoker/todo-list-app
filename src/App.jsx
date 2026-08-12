@@ -1492,17 +1492,21 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
 
-  const sorted = [...items].sort((a, b) =>
-    (a.created_at || '').localeCompare(b.created_at || '')
-  )
+  const sorted = [...items].sort((a, b) => {
+    if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
+    return (a.created_at || '').localeCompare(b.created_at || '')
+  })
 
   async function addItem(e) {
     e.preventDefault()
     const title = text.trim()
     if (!title) return
     setBusy(true)
-    await supabase.from('list_items').insert([{ list_id: list.id, title }])
+    const nextPos = sorted.length ? (sorted[sorted.length - 1].position || 0) + 1 : 1
+    await supabase.from('list_items').insert([{ list_id: list.id, title, position: nextPos }])
     setText('')
     setBusy(false)
     setAdding(false)
@@ -1523,6 +1527,33 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
     refresh()
   }
 
+  async function moveItem(item, direction) {
+    const idx = sorted.findIndex((i) => i.id === item.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]
+    await Promise.all([
+      supabase.from('list_items').update({ position: other.position || 0 }).eq('id', item.id),
+      supabase.from('list_items').update({ position: item.position || 0 }).eq('id', other.id),
+    ])
+    refresh()
+  }
+
+  function startEdit(item) {
+    if (readOnly) return
+    setEditingId(item.id)
+    setEditText(item.title)
+  }
+
+  async function saveEdit() {
+    const title = editText.trim()
+    const id = editingId
+    setEditingId(null)
+    if (!title || !id) return
+    await supabase.from('list_items').update({ title }).eq('id', id)
+    refresh()
+  }
+
   async function deleteThisList() {
     await supabase.from('lists').delete().eq('id', list.id)
     refresh()
@@ -1535,7 +1566,7 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
         <p className="empty">Nothing on this list yet.</p>
       ) : (
         <ul className="task-list">
-          {sorted.map((item) => (
+          {sorted.map((item, i) => (
             <li key={item.id} className={`task ${item.is_complete ? 'idea-done' : ''}`}>
               <span className="spine" aria-hidden="true" />
               <label className={`task-check${readOnly ? ' read-only' : ''}`}>
@@ -1549,16 +1580,56 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
                 <span className="box" />
               </label>
               <div className="task-body">
-                <span className="task-title">{item.title}</span>
+                {editingId === item.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editText}
+                    autoFocus
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="task-title task-title-editable"
+                    onClick={() => startEdit(item)}
+                  >
+                    {item.title}
+                  </span>
+                )}
               </div>
               {!readOnly && (
-                <button
-                  className="list-remove"
-                  onClick={() => removeItem(item.id)}
-                  aria-label={`Delete ${item.title}`}
-                >
-                  ×
-                </button>
+                <div className="item-actions">
+                  <div className="item-reorder">
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(item, 'up')}
+                      disabled={i === 0}
+                      aria-label={`Move ${item.title} up`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(item, 'down')}
+                      disabled={i === sorted.length - 1}
+                      aria-label={`Move ${item.title} down`}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  <button
+                    className="list-remove"
+                    onClick={() => removeItem(item.id)}
+                    aria-label={`Delete ${item.title}`}
+                  >
+                    ×
+                  </button>
+                </div>
               )}
             </li>
           ))}

@@ -914,6 +914,49 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 }
 .list-remove:hover { color: var(--red); }
 
+/* ---------- list item actions: reorder + delete ---------- */
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.item-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.item-move {
+  width: 22px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 0;
+}
+.item-move:hover:not(:disabled) { color: var(--red); }
+.item-move:disabled { opacity: 0.25; }
+
+/* ---------- editable list-item title ---------- */
+.task-title-editable { cursor: text; }
+.item-edit-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+  border: none;
+  border-bottom: 1.5px solid var(--red);
+  background: transparent;
+  padding: 0 0 2px;
+}
+.item-edit-input:focus { outline: none; }
+
 /* ---------- custom list items ---------- */
 .idea-done .task-title {
   color: var(--muted);
