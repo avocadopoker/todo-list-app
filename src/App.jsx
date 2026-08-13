@@ -1911,39 +1911,16 @@ function ListsScreen({
                 }}
               />
             ) : (
-              <span className="lists-tab-wrap">
-                <button
-                  className={activeTab === 'ideas' ? 'active' : ''}
-                  onClick={() => setActiveTab('ideas')}
-                >
-                  {ideasName}
-                </button>
-                {activeTab === 'ideas' && !readOnly && (
-                  <button
-                    className="tab-rename-btn"
-                    onClick={() => startRename('ideas', ideasName)}
-                    aria-label={`Rename ${ideasName}`}
-                  >
-                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-                      <path
-                        d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M13.5 6.5l4 4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                )}
-              </span>
+              <button
+                className={activeTab === 'ideas' ? 'active' : ''}
+                onClick={() =>
+                  activeTab === 'ideas' && !readOnly
+                    ? startRename('ideas', ideasName)
+                    : setActiveTab('ideas')
+                }
+              >
+                {ideasName}
+              </button>
             ))}
 
           {scopedLists.map((l) =>
@@ -1962,39 +1939,17 @@ function ListsScreen({
                 }}
               />
             ) : (
-              <span key={l.id} className="lists-tab-wrap">
-                <button
-                  className={activeTab === l.id ? 'active' : ''}
-                  onClick={() => setActiveTab(l.id)}
-                >
-                  {l.name}
-                </button>
-                {activeTab === l.id && !readOnly && (
-                  <button
-                    className="tab-rename-btn"
-                    onClick={() => startRename(l.id, l.name)}
-                    aria-label={`Rename ${l.name}`}
-                  >
-                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-                      <path
-                        d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M13.5 6.5l4 4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                )}
-              </span>
+              <button
+                key={l.id}
+                className={activeTab === l.id ? 'active' : ''}
+                onClick={() =>
+                  activeTab === l.id && !readOnly
+                    ? startRename(l.id, l.name)
+                    : setActiveTab(l.id)
+                }
+              >
+                {l.name}
+              </button>
             )
           )}
           {!readOnly && (

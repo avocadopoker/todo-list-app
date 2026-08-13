@@ -975,25 +975,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
    but allowed to wrap onto multiple lines if there are many lists */
 .lists-switch { flex-wrap: wrap; row-gap: 4px; }
 
-/* ---------- rename control embedded in the active list tab ---------- */
-.lists-tab-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.tab-rename-btn {
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  color: var(--muted);
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.tab-rename-btn:hover { color: var(--red); background: var(--red-tint); }
+/* ---------- rename input, replaces a tab's label when renaming ---------- */
 .tab-rename-input {
   font-family: inherit;
   font-size: 0.85rem;
