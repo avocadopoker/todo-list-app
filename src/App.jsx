@@ -460,12 +460,12 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
 }
 
 /* ---------- add task ---------- */
-function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
+function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRecurring }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(presetDate || '')
   const [time, setTime] = useState('')
   const [duration, setDuration] = useState('2')
-  const [recurring, setRecurring] = useState(false)
+  const [recurring, setRecurring] = useState(!!presetRecurring)
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
   const [assignee, setAssignee] = useState(`u:${myId}`)
@@ -517,7 +517,7 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
         <button className="ghost" onClick={onCancel}>
           ← Back
         </button>
-        <h2>New task</h2>
+        <h2>{presetRecurring ? 'New habit' : 'New task'}</h2>
       </div>
 
       <form onSubmit={save} className="add-form">
@@ -1998,6 +1998,7 @@ function ListsScreen({
 function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
+  const [adding, setAdding] = useState(false)
 
   const recurring = tasks
     .filter((t) => t.repeat_unit)
@@ -2025,6 +2026,21 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 
   const groupNameFor = (id) => (groups.find((g) => g.id === id) || {}).name
 
+  if (adding)
+    return (
+      <AddTask
+        people={people}
+        groups={groups}
+        myId={myId}
+        presetRecurring
+        onCancel={() => setAdding(false)}
+        onDone={() => {
+          setAdding(false)
+          refresh()
+        }}
+      />
+    )
+
   if (editing)
     return (
       <EditTask
@@ -2048,7 +2064,7 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
       {taskLoading ? (
         <p className="empty">Loading...</p>
       ) : recurring.length === 0 ? (
-        <p className="empty">No habits yet.</p>
+        <p className="empty">No habits yet. Add one with the + button.</p>
       ) : (
         <ul className="task-list">
           {recurring.map((t) => (
@@ -2067,6 +2083,10 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
           ))}
         </ul>
       )}
+
+      <button className="fab" onClick={() => setAdding(true)} aria-label="Add habit">
+        +
+      </button>
 
       {selected.size > 0 && (
         <div className="delete-bar">
