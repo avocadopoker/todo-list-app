@@ -945,38 +945,6 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 /* ---------- editable list-item title ---------- */
 .task-title-editable { cursor: text; }
 
-/* ---------- editable list name heading ---------- */
-.list-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-.list-title-row h2 {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.3rem;
-  font-weight: 700;
-  margin: 0;
-}
-.list-name-edit {
-  margin: 0;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.list-title-input {
-  flex: 1;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--ink);
-  border: none;
-  border-bottom: 2px solid var(--red);
-  background: transparent;
-  padding: 0 0 2px;
-}
-.list-title-input:focus { outline: none; }
 .item-edit-input {
   width: 100%;
   font-family: inherit;
@@ -1006,6 +974,38 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 /* subtab bar for Ideas / custom lists - same look as the main view-switch
    but allowed to wrap onto multiple lines if there are many lists */
 .lists-switch { flex-wrap: wrap; row-gap: 4px; }
+
+/* ---------- rename control embedded in the active list tab ---------- */
+.lists-tab-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.tab-rename-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.tab-rename-btn:hover { color: var(--red); background: var(--red-tint); }
+.tab-rename-input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 9px 4px;
+  border: none;
+  border-bottom: 2px solid var(--red);
+  background: transparent;
+  min-width: 90px;
+}
+.tab-rename-input:focus { outline: none; }
 
 /* ---------- lists subtab bar: add-list button ---------- */
 .lists-add-btn {

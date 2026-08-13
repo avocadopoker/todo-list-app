@@ -1307,19 +1307,6 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
-  const [renaming, setRenaming] = useState(false)
-  const [nameText, setNameText] = useState(ideasName)
-
-  async function saveRename() {
-    const name = nameText.trim()
-    setRenaming(false)
-    if (!name || name === ideasName) {
-      setNameText(ideasName)
-      return
-    }
-    await supabase.from('profiles').update({ ideas_name: name }).eq('id', myId)
-    refresh()
-  }
 
   const sorted = [...ideas].sort((a, b) => {
     if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
@@ -1457,55 +1444,6 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
 
   return (
     <div className="ideas">
-      <div className="list-title-row">
-        {renaming ? (
-          <input
-            type="text"
-            className="list-title-input"
-            value={nameText}
-            autoFocus
-            onChange={(e) => setNameText(e.target.value)}
-            onBlur={saveRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-              if (e.key === 'Escape') {
-                setNameText(ideasName)
-                setRenaming(false)
-              }
-            }}
-          />
-        ) : (
-          <>
-            <h2>{ideasName}</h2>
-            {!readOnly && (
-              <button
-                className="edit-btn list-name-edit"
-                onClick={() => setRenaming(true)}
-                aria-label={`Rename ${ideasName}`}
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <path
-                    d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M13.5 6.5l4 4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
       {loading ? (
         <p className="empty">Loading...</p>
       ) : sorted.length === 0 ? (
@@ -1634,19 +1572,6 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
-  const [renaming, setRenaming] = useState(false)
-  const [nameText, setNameText] = useState(list.name)
-
-  async function saveRename() {
-    const name = nameText.trim()
-    setRenaming(false)
-    if (!name || name === list.name) {
-      setNameText(list.name)
-      return
-    }
-    await supabase.from('lists').update({ name }).eq('id', list.id)
-    refresh()
-  }
 
   const sorted = [...items].sort((a, b) => {
     if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
@@ -1715,55 +1640,6 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
 
   return (
     <div className="ideas">
-      <div className="list-title-row">
-        {renaming ? (
-          <input
-            type="text"
-            className="list-title-input"
-            value={nameText}
-            autoFocus
-            onChange={(e) => setNameText(e.target.value)}
-            onBlur={saveRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-              if (e.key === 'Escape') {
-                setNameText(list.name)
-                setRenaming(false)
-              }
-            }}
-          />
-        ) : (
-          <>
-            <h2>{list.name}</h2>
-            {!readOnly && (
-              <button
-                className="edit-btn list-name-edit"
-                onClick={() => setRenaming(true)}
-                aria-label={`Rename ${list.name}`}
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <path
-                    d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M13.5 6.5l4 4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
       {sorted.length === 0 ? (
         <p className="empty">Nothing on this list yet.</p>
       ) : (
@@ -1905,6 +1781,8 @@ function ListsScreen({
   const [creating, setCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
+  const [renamingTab, setRenamingTab] = useState(null) // 'ideas' | a list id | null
+  const [renameText, setRenameText] = useState('')
 
   const readOnly = viewingUserId !== null
   const ideasHidden = !readOnly && !!profile?.ideas_hidden
@@ -1947,6 +1825,27 @@ function ListsScreen({
     setCreating(false)
     refresh()
     if (!error && data && data[0]) setActiveTab(data[0].id)
+  }
+
+  function startRename(tabKey, currentName) {
+    setRenamingTab(tabKey)
+    setRenameText(currentName)
+  }
+
+  async function saveTabRename() {
+    const name = renameText.trim()
+    const tabKey = renamingTab
+    setRenamingTab(null)
+    if (!name) return
+    if (tabKey === 'ideas') {
+      if (name === ideasName) return
+      await supabase.from('profiles').update({ ideas_name: name }).eq('id', myId)
+    } else {
+      const current = scopedLists.find((l) => l.id === tabKey)
+      if (current && name === current.name) return
+      await supabase.from('lists').update({ name }).eq('id', tabKey)
+    }
+    refresh()
   }
 
   const viewingName = readOnly
@@ -1996,23 +1895,108 @@ function ListsScreen({
         </form>
       ) : (
         <div className="view-switch lists-switch">
-          {!ideasHidden && (
-            <button
-              className={activeTab === 'ideas' ? 'active' : ''}
-              onClick={() => setActiveTab('ideas')}
-            >
-              {ideasName}
-            </button>
+          {!ideasHidden &&
+            (renamingTab === 'ideas' ? (
+              <input
+                key="ideas-rename"
+                type="text"
+                className="tab-rename-input"
+                value={renameText}
+                autoFocus
+                onChange={(e) => setRenameText(e.target.value)}
+                onBlur={saveTabRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                  if (e.key === 'Escape') setRenamingTab(null)
+                }}
+              />
+            ) : (
+              <span className="lists-tab-wrap">
+                <button
+                  className={activeTab === 'ideas' ? 'active' : ''}
+                  onClick={() => setActiveTab('ideas')}
+                >
+                  {ideasName}
+                </button>
+                {activeTab === 'ideas' && !readOnly && (
+                  <button
+                    className="tab-rename-btn"
+                    onClick={() => startRename('ideas', ideasName)}
+                    aria-label={`Rename ${ideasName}`}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                      <path
+                        d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M13.5 6.5l4 4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </span>
+            ))}
+
+          {scopedLists.map((l) =>
+            renamingTab === l.id ? (
+              <input
+                key={l.id}
+                type="text"
+                className="tab-rename-input"
+                value={renameText}
+                autoFocus
+                onChange={(e) => setRenameText(e.target.value)}
+                onBlur={saveTabRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                  if (e.key === 'Escape') setRenamingTab(null)
+                }}
+              />
+            ) : (
+              <span key={l.id} className="lists-tab-wrap">
+                <button
+                  className={activeTab === l.id ? 'active' : ''}
+                  onClick={() => setActiveTab(l.id)}
+                >
+                  {l.name}
+                </button>
+                {activeTab === l.id && !readOnly && (
+                  <button
+                    className="tab-rename-btn"
+                    onClick={() => startRename(l.id, l.name)}
+                    aria-label={`Rename ${l.name}`}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                      <path
+                        d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M13.5 6.5l4 4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </span>
+            )
           )}
-          {scopedLists.map((l) => (
-            <button
-              key={l.id}
-              className={activeTab === l.id ? 'active' : ''}
-              onClick={() => setActiveTab(l.id)}
-            >
-              {l.name}
-            </button>
-          ))}
           {!readOnly && (
             <button
               className="lists-add-btn"
