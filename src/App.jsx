@@ -1995,7 +1995,7 @@ function ListsScreen({
 }
 
 /* ---------- recurring screen ---------- */
-function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
+function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
 
@@ -2043,12 +2043,12 @@ function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
   return (
     <div className="tdl">
       <p className="section-title" style={{ marginBottom: '16px' }}>
-        All recurring tasks
+        All habits
       </p>
-      {loading ? (
+      {taskLoading ? (
         <p className="empty">Loading...</p>
       ) : recurring.length === 0 ? (
-        <p className="empty">No recurring tasks yet.</p>
+        <p className="empty">No habits yet.</p>
       ) : (
         <ul className="task-list">
           {recurring.map((t) => (
@@ -2348,6 +2348,62 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
   )
 }
 
+/* ---------- Setup screen wrapper: Settings + Habits subtabs ---------- */
+function SetupScreen({
+  tasks,
+  taskLoading,
+  people,
+  profile,
+  groups,
+  members,
+  invites,
+  myId,
+  nameFor,
+  refresh,
+}) {
+  const [tab, setTab] = useState('settings')
+
+  return (
+    <div className="tdl">
+      <div className="view-switch" style={{ marginBottom: '22px' }}>
+        <button
+          className={tab === 'settings' ? 'active' : ''}
+          onClick={() => setTab('settings')}
+        >
+          Settings
+        </button>
+        <button
+          className={tab === 'habits' ? 'active' : ''}
+          onClick={() => setTab('habits')}
+        >
+          Habits
+        </button>
+      </div>
+
+      {tab === 'settings' ? (
+        <Setup
+          profile={profile}
+          groups={groups}
+          members={members}
+          invites={invites}
+          myId={myId}
+          refresh={refresh}
+        />
+      ) : (
+        <Habits
+          tasks={tasks}
+          taskLoading={taskLoading}
+          refresh={refresh}
+          myId={myId}
+          nameFor={nameFor}
+          people={people}
+          groups={groups}
+        />
+      )}
+    </div>
+  )
+}
+
 /* ---------- local cache so the app paints instantly on open ---------- */
 const CACHE_KEY = 'tdl_cache_v1'
 function loadCache(uid) {
@@ -2580,12 +2636,6 @@ function Shell({ session }) {
             TDL
           </button>
           <button
-            className={screen === 'recurring' ? 'active' : ''}
-            onClick={() => setScreen('recurring')}
-          >
-            Recurring
-          </button>
-          <button
             className={screen === 'ideas' ? 'active' : ''}
             onClick={() => setScreen('ideas')}
           >
@@ -2614,17 +2664,6 @@ function Shell({ session }) {
             viewablePeople={viewablePeople}
           />
         )}
-        {screen === 'recurring' && (
-          <Recurring
-            tasks={tasks}
-            loading={loading}
-            refresh={refresh}
-            myId={myId}
-            nameFor={nameFor}
-            people={people}
-            groups={groups}
-          />
-        )}
         {screen === 'ideas' && (
           <ListsScreen
             ideas={ideas}
@@ -2640,12 +2679,16 @@ function Shell({ session }) {
           />
         )}
         {screen === 'setup' && (
-          <Setup
+          <SetupScreen
+            tasks={tasks}
+            taskLoading={loading}
+            people={people}
             profile={profile}
             groups={groups}
             members={members}
             invites={invites}
             myId={myId}
+            nameFor={nameFor}
             refresh={refresh}
           />
         )}
