@@ -1305,6 +1305,13 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+
+  const sorted = [...ideas].sort((a, b) => {
+    if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
+    return (a.created_at || '').localeCompare(b.created_at || '')
+  })
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -1321,11 +1328,13 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
     if (!body) return
     setBusy(true)
     setErr('')
+    const nextPos = sorted.length ? (sorted[sorted.length - 1].position || 0) + 1 : 1
     const { error } = await supabase.from('ideas').insert([
       {
         title: body,
         group_id: target === 'me' ? null : target,
         user_id: myId,
+        position: nextPos,
       },
     ])
     setBusy(false)
@@ -1349,6 +1358,33 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
     await supabase.from('profiles').update({ ideas_hidden: true }).eq('id', myId)
     refresh()
     onDeleted()
+  }
+
+  async function moveItem(item, direction) {
+    const idx = sorted.findIndex((i) => i.id === item.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]
+    await Promise.all([
+      supabase.from('ideas').update({ position: other.position || 0 }).eq('id', item.id),
+      supabase.from('ideas').update({ position: item.position || 0 }).eq('id', other.id),
+    ])
+    refresh()
+  }
+
+  function startEdit(item) {
+    if (readOnly) return
+    setEditingId(item.id)
+    setEditText(item.title)
+  }
+
+  async function saveEdit() {
+    const title = editText.trim()
+    const id = editingId
+    setEditingId(null)
+    if (!title || !id) return
+    await supabase.from('ideas').update({ title }).eq('id', id)
+    refresh()
   }
 
   if (adding && !readOnly)
@@ -1410,11 +1446,11 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
     <div className="ideas">
       {loading ? (
         <p className="empty">Loading...</p>
-      ) : ideas.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <p className="empty">No ideas yet. Add one with the + button.</p>
       ) : (
         <ul className="task-list">
-          {ideas.map((i) => (
+          {sorted.map((i, idx) => (
             <li
               key={i.id}
               className={`task idea ${selected.has(i.id) ? 'is-selected' : ''}`}
@@ -1431,7 +1467,27 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
                 <span className="box" />
               </label>
               <div className="task-body">
-                <span className="task-title">{i.title}</span>
+                {editingId === i.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editText}
+                    autoFocus
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className={`task-title${readOnly ? '' : ' task-title-editable'}`}
+                    onClick={() => startEdit(i)}
+                  >
+                    {i.title}
+                  </span>
+                )}
                 <span className="task-meta">
                   {i.group_id && (
                     <span className="group-tag">{groupName(i.group_id)}</span>
@@ -1441,6 +1497,28 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
                   )}
                 </span>
               </div>
+              {!readOnly && (
+                <div className="item-actions">
+                  <div className="item-reorder">
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(i, 'up')}
+                      disabled={idx === 0}
+                      aria-label={`Move ${i.title} up`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(i, 'down')}
+                      disabled={idx === sorted.length - 1}
+                      aria-label={`Move ${i.title} down`}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -1494,6 +1572,19 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [nameText, setNameText] = useState(list.name)
+
+  async function saveRename() {
+    const name = nameText.trim()
+    setRenaming(false)
+    if (!name || name === list.name) {
+      setNameText(list.name)
+      return
+    }
+    await supabase.from('lists').update({ name }).eq('id', list.id)
+    refresh()
+  }
 
   const sorted = [...items].sort((a, b) => {
     if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
@@ -1562,6 +1653,33 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
 
   return (
     <div className="ideas">
+      <div className="list-title-row">
+        {renaming ? (
+          <input
+            type="text"
+            className="list-title-input"
+            value={nameText}
+            autoFocus
+            onChange={(e) => setNameText(e.target.value)}
+            onBlur={saveRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              if (e.key === 'Escape') {
+                setNameText(list.name)
+                setRenaming(false)
+              }
+            }}
+          />
+        ) : (
+          <h2
+            className={readOnly ? '' : 'list-title-editable'}
+            onClick={() => !readOnly && setRenaming(true)}
+          >
+            {list.name}
+          </h2>
+        )}
+      </div>
+
       {sorted.length === 0 ? (
         <p className="empty">Nothing on this list yet.</p>
       ) : (
@@ -1835,6 +1953,7 @@ function ListsScreen({
         />
       ) : activeList ? (
         <CustomList
+          key={activeList.id}
           list={activeList}
           items={listItems.filter((it) => it.list_id === activeList.id)}
           refresh={refresh}

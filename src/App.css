@@ -944,6 +944,29 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 
 /* ---------- editable list-item title ---------- */
 .task-title-editable { cursor: text; }
+
+/* ---------- editable list name heading ---------- */
+.list-title-row { margin-bottom: 16px; }
+.list-title-row h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+}
+.list-title-editable { cursor: text; }
+.list-title-editable:hover { color: var(--red); }
+.list-title-input {
+  width: 100%;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ink);
+  border: none;
+  border-bottom: 2px solid var(--red);
+  background: transparent;
+  padding: 0 0 2px;
+}
+.list-title-input:focus { outline: none; }
 .item-edit-input {
   width: 100%;
   font-family: inherit;
