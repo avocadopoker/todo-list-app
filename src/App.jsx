@@ -1297,7 +1297,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 }
 
 /* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDeleted }) {
+function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDeleted, ideasName }) {
   const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [target, setTarget] = useState('me')
@@ -1307,6 +1307,19 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [nameText, setNameText] = useState(ideasName)
+
+  async function saveRename() {
+    const name = nameText.trim()
+    setRenaming(false)
+    if (!name || name === ideasName) {
+      setNameText(ideasName)
+      return
+    }
+    await supabase.from('profiles').update({ ideas_name: name }).eq('id', myId)
+    refresh()
+  }
 
   const sorted = [...ideas].sort((a, b) => {
     if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
@@ -1444,6 +1457,55 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
 
   return (
     <div className="ideas">
+      <div className="list-title-row">
+        {renaming ? (
+          <input
+            type="text"
+            className="list-title-input"
+            value={nameText}
+            autoFocus
+            onChange={(e) => setNameText(e.target.value)}
+            onBlur={saveRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              if (e.key === 'Escape') {
+                setNameText(ideasName)
+                setRenaming(false)
+              }
+            }}
+          />
+        ) : (
+          <>
+            <h2>{ideasName}</h2>
+            {!readOnly && (
+              <button
+                className="edit-btn list-name-edit"
+                onClick={() => setRenaming(true)}
+                aria-label={`Rename ${ideasName}`}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M13.5 6.5l4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
       {loading ? (
         <p className="empty">Loading...</p>
       ) : sorted.length === 0 ? (
@@ -1542,7 +1604,7 @@ function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDel
           {confirmDelete ? (
             <div className="delete-confirm">
               <p className="setup-note">
-                Delete all your ideas and hide this tab? This can't be undone.
+                Delete "{ideasName}" and everything on it? This can't be undone.
               </p>
               <div className="invite-actions">
                 <button className="btn-danger" onClick={deleteThisList}>
@@ -1671,12 +1733,34 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
             }}
           />
         ) : (
-          <h2
-            className={readOnly ? '' : 'list-title-editable'}
-            onClick={() => !readOnly && setRenaming(true)}
-          >
-            {list.name}
-          </h2>
+          <>
+            <h2>{list.name}</h2>
+            {!readOnly && (
+              <button
+                className="edit-btn list-name-edit"
+                onClick={() => setRenaming(true)}
+                aria-label={`Rename ${list.name}`}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path
+                    d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M13.5 6.5l4 4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -1824,6 +1908,7 @@ function ListsScreen({
 
   const readOnly = viewingUserId !== null
   const ideasHidden = !readOnly && !!profile?.ideas_hidden
+  const ideasName = profile?.ideas_name || 'Ideas'
 
   // "Me": my own ideas/lists plus group-shared ideas. Someone else: their
   // ideas/lists (their lists are always personal; their group ideas show
@@ -1916,7 +2001,7 @@ function ListsScreen({
               className={activeTab === 'ideas' ? 'active' : ''}
               onClick={() => setActiveTab('ideas')}
             >
-              Ideas
+              {ideasName}
             </button>
           )}
           {scopedLists.map((l) => (
@@ -1950,6 +2035,7 @@ function ListsScreen({
           nameFor={nameFor}
           readOnly={readOnly}
           onDeleted={() => setActiveTab(scopedLists[0]?.id || 'ideas')}
+          ideasName={ideasName}
         />
       ) : activeList ? (
         <CustomList
@@ -2201,7 +2287,7 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
             checked={!profile?.ideas_hidden}
             onChange={(e) => toggleIdeasVisible(e.target.checked)}
           />
-          <span>Show the Ideas tab</span>
+          <span>Show the "{profile?.ideas_name || 'Ideas'}" tab</span>
         </label>
       </section>
 

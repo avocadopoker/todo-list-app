@@ -946,17 +946,27 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .task-title-editable { cursor: text; }
 
 /* ---------- editable list name heading ---------- */
-.list-title-row { margin-bottom: 16px; }
+.list-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
 .list-title-row h2 {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
   font-weight: 700;
   margin: 0;
 }
-.list-title-editable { cursor: text; }
-.list-title-editable:hover { color: var(--red); }
+.list-name-edit {
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
 .list-title-input {
-  width: 100%;
+  flex: 1;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
   font-weight: 700;
