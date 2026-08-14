@@ -705,12 +705,8 @@ async function pickAndAdvanceReward(profile, rewardLines, myId) {
 }
 
 function StreakBurst({ n, line, onEnd }) {
-  useEffect(() => {
-    const t = setTimeout(onEnd, 3400)
-    return () => clearTimeout(t)
-  }, [onEnd])
   return (
-    <div className="streak-overlay" onClick={onEnd}>
+    <div className="streak-overlay">
       <div className="streak-pop">
         <div className="burst" aria-hidden="true">
           {Array.from({ length: 12 }).map((_, i) => (
@@ -720,6 +716,9 @@ function StreakBurst({ n, line, onEnd }) {
         <div className="streak-num">🔥 {n}</div>
         <div className="streak-caption">day streak!</div>
         {line && <div className="streak-line">{line}</div>}
+        <button className="streak-continue" onClick={onEnd}>
+          Nice!
+        </button>
       </div>
     </div>
   )

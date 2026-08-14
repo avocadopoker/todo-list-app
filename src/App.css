@@ -691,6 +691,20 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   padding: 0 12px;
   animation: fadeIn 0.4s ease 0.3s both;
 }
+.streak-continue {
+  margin-top: 28px;
+  background: #fff;
+  color: var(--red);
+  border: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 12px 32px;
+  border-radius: 24px;
+  animation: fadeIn 0.4s ease 0.5s both;
+}
+.streak-continue:hover { background: #ffe8e6; }
+.streak-continue:active { transform: scale(0.96); }
 .burst {
   position: absolute;
   top: 42%;
