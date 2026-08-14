@@ -464,14 +464,70 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 }
 .member-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--ink);
   font-size: 0.8rem;
   font-weight: 500;
-  padding: 4px 12px;
+  padding: 4px 8px 4px 12px;
   border-radius: 20px;
 }
+.chip-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+.chip-remove:hover { color: var(--red); }
+
+/* ---------- rewards ---------- */
+.rewards-incoming, .rewards-given {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.reward-card {
+  background: var(--red-faint);
+  border: 1px solid var(--red-tint);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+.reward-card.given {
+  background: var(--paper);
+  border-color: var(--line);
+}
+.reward-given-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+.reward-given-detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.reward-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reward-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.reward-form-row .repeat-num { width: 64px; }
 
 .invite-card {
   display: flex;
@@ -622,6 +678,18 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   font-weight: 600;
   color: #ffd9a8;
   text-transform: lowercase;
+}
+.streak-line {
+  margin-top: 18px;
+  max-width: 300px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #fff;
+  text-align: center;
+  padding: 0 12px;
+  animation: fadeIn 0.4s ease 0.3s both;
 }
 .burst {
   position: absolute;

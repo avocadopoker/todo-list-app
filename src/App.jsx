@@ -1348,274 +1348,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   )
 }
 
-/* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDeleted, ideasName }) {
-  const [adding, setAdding] = useState(false)
-  const [text, setText] = useState('')
-  const [target, setTarget] = useState('me')
-  const [selected, setSelected] = useState(new Set())
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [editText, setEditText] = useState('')
-
-  const sorted = [...ideas].sort((a, b) => {
-    if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
-    return (a.created_at || '').localeCompare(b.created_at || '')
-  })
-
-  const toggleSelect = (id) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  async function save(e) {
-    e.preventDefault()
-    const body = text.trim()
-    if (!body) return
-    setBusy(true)
-    setErr('')
-    const nextPos = sorted.length ? (sorted[sorted.length - 1].position || 0) + 1 : 1
-    const { error } = await supabase.from('ideas').insert([
-      {
-        title: body,
-        group_id: target === 'me' ? null : target,
-        user_id: myId,
-        position: nextPos,
-      },
-    ])
-    setBusy(false)
-    if (error) setErr(error.message)
-    else {
-      setText('')
-      setTarget('me')
-      setAdding(false)
-      refresh()
-    }
-  }
-
-  async function deleteSelected() {
-    await supabase.from('ideas').delete().in('id', [...selected])
-    setSelected(new Set())
-    refresh()
-  }
-
-  async function deleteThisList() {
-    await supabase.from('ideas').delete().eq('user_id', myId)
-    await supabase.from('profiles').update({ ideas_hidden: true }).eq('id', myId)
-    refresh()
-    onDeleted()
-  }
-
-  async function moveItem(item, direction) {
-    const idx = sorted.findIndex((i) => i.id === item.id)
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (swapIdx < 0 || swapIdx >= sorted.length) return
-    const other = sorted[swapIdx]
-    await Promise.all([
-      supabase.from('ideas').update({ position: other.position || 0 }).eq('id', item.id),
-      supabase.from('ideas').update({ position: item.position || 0 }).eq('id', other.id),
-    ])
-    refresh()
-  }
-
-  function startEdit(item) {
-    if (readOnly) return
-    setEditingId(item.id)
-    setEditText(item.title)
-  }
-
-  async function saveEdit() {
-    const title = editText.trim()
-    const id = editingId
-    setEditingId(null)
-    if (!title || !id) return
-    await supabase.from('ideas').update({ title }).eq('id', id)
-    refresh()
-  }
-
-  if (adding && !readOnly)
-    return (
-      <div className="add-screen">
-        <div className="add-head">
-          <button className="ghost" onClick={() => setAdding(false)}>
-            ← Back
-          </button>
-          <h2>New idea</h2>
-        </div>
-        <form onSubmit={save} className="add-form">
-          <label>
-            Idea
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Something you don't want to forget"
-              autoFocus
-              required
-            />
-          </label>
-
-          {groups.length > 0 && (
-            <label>
-              Idea for
-              <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                <option value="me">Just me</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} (shared)
-                  </option>
-                ))}
-              </select>
-              <span className="hint">
-                Group ideas are visible to everyone in that group.
-              </span>
-            </label>
-          )}
-
-          {err && <p className="auth-msg">{err}</p>}
-
-          <div className="add-actions">
-            <button type="button" className="ghost" onClick={() => setAdding(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={busy}>
-              {busy ? 'Saving...' : 'Add idea'}
-            </button>
-          </div>
-        </form>
-      </div>
-    )
-
-  const groupName = (gid) => (groups.find((g) => g.id === gid) || {}).name
-
-  return (
-    <div className="ideas">
-      {loading ? (
-        <p className="empty">Loading...</p>
-      ) : sorted.length === 0 ? (
-        <p className="empty">No ideas yet. Add one with the + button.</p>
-      ) : (
-        <ul className="task-list">
-          {sorted.map((i, idx) => (
-            <li
-              key={i.id}
-              className={`task idea ${selected.has(i.id) ? 'is-selected' : ''}`}
-            >
-              <span className="spine" aria-hidden="true" />
-              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(i.id)}
-                  disabled={readOnly}
-                  onChange={() => !readOnly && toggleSelect(i.id)}
-                  aria-label={`Select ${i.title}`}
-                />
-                <span className="box" />
-              </label>
-              <div className="task-body">
-                {editingId === i.id ? (
-                  <input
-                    type="text"
-                    className="item-edit-input"
-                    value={editText}
-                    autoFocus
-                    onChange={(e) => setEditText(e.target.value)}
-                    onBlur={saveEdit}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur()
-                      if (e.key === 'Escape') setEditingId(null)
-                    }}
-                  />
-                ) : (
-                  <span
-                    className={`task-title${readOnly ? '' : ' task-title-editable'}`}
-                    onClick={() => startEdit(i)}
-                  >
-                    {i.title}
-                  </span>
-                )}
-                <span className="task-meta">
-                  {i.group_id && (
-                    <span className="group-tag">{groupName(i.group_id)}</span>
-                  )}
-                  {i.user_id !== myId && (
-                    <span className="from-tag">from {nameFor(i.user_id)}</span>
-                  )}
-                </span>
-              </div>
-              {!readOnly && (
-                <div className="item-actions">
-                  <div className="item-reorder">
-                    <button
-                      className="item-move"
-                      onClick={() => moveItem(i, 'up')}
-                      disabled={idx === 0}
-                      aria-label={`Move ${i.title} up`}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      className="item-move"
-                      onClick={() => moveItem(i, 'down')}
-                      disabled={idx === sorted.length - 1}
-                      aria-label={`Move ${i.title} down`}
-                    >
-                      ▼
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {!readOnly && (
-        <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
-          +
-        </button>
-      )}
-
-      {!readOnly && selected.size > 0 && (
-        <div className="delete-bar">
-          <span>{selected.size} selected</span>
-          <button onClick={deleteSelected}>Delete selected</button>
-        </div>
-      )}
-
-      {!readOnly && (
-        <div className="list-delete-zone">
-          {confirmDelete ? (
-            <div className="delete-confirm">
-              <p className="setup-note">
-                Delete "{ideasName}" and everything on it? This can't be undone.
-              </p>
-              <div className="invite-actions">
-                <button className="btn-danger" onClick={deleteThisList}>
-                  Yes, delete this list
-                </button>
-                <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
-              Delete this list
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /* ---------- a single custom checklist ---------- */
 function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [adding, setAdding] = useState(false)
@@ -1818,52 +1550,36 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
 
 /* ---------- Lists screen: Ideas + custom checklists as subtabs ---------- */
 function ListsScreen({
-  ideas,
   lists,
   listItems,
-  loading,
   refresh,
-  groups,
   myId,
-  nameFor,
-  profile,
   viewablePeople,
 }) {
-  const [activeTab, setActiveTab] = useState('ideas')
+  const [activeTab, setActiveTab] = useState(null)
   const [creating, setCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
-  const [renamingTab, setRenamingTab] = useState(null) // 'ideas' | a list id | null
+  const [renamingTab, setRenamingTab] = useState(null) // a list id, or null
   const [renameText, setRenameText] = useState('')
 
   const readOnly = viewingUserId !== null
-  const ideasHidden = !readOnly && !!profile?.ideas_hidden
-  const ideasName = profile?.ideas_name || 'Ideas'
-
-  // "Me": my own ideas/lists plus group-shared ideas. Someone else: their
-  // ideas/lists (their lists are always personal; their group ideas show
-  // too, same as "Me" - I'm in that group if I can see it at all).
-  const scopedIdeas = readOnly
-    ? ideas.filter((i) => i.user_id === viewingUserId || i.group_id)
-    : ideas.filter((i) => i.user_id === myId || i.group_id)
   const scopedLists = readOnly
     ? lists.filter((l) => l.user_id === viewingUserId)
     : lists.filter((l) => l.user_id === myId)
 
-  const activeList =
-    activeTab !== 'ideas' ? scopedLists.find((l) => l.id === activeTab) : null
+  const activeList = scopedLists.find((l) => l.id === activeTab) || null
 
   // a list may have been deleted, or we switched who we're viewing - fall
-  // back to Ideas whenever the active tab no longer resolves to anything
+  // back to whichever list is first (or nothing) once the active one no
+  // longer resolves
   useEffect(() => {
-    if (activeTab === 'ideas') {
-      if (ideasHidden) setActiveTab(scopedLists[0]?.id || 'ideas')
-      return
+    if (activeTab && !scopedLists.some((l) => l.id === activeTab)) {
+      setActiveTab(scopedLists[0]?.id || null)
+    } else if (!activeTab && scopedLists.length > 0) {
+      setActiveTab(scopedLists[0].id)
     }
-    if (!scopedLists.some((l) => l.id === activeTab)) {
-      setActiveTab(ideasHidden ? scopedLists[0]?.id || 'ideas' : 'ideas')
-    }
-  }, [activeTab, scopedLists, ideasHidden])
+  }, [activeTab, scopedLists])
 
   async function createList(e) {
     e.preventDefault()
@@ -1889,14 +1605,9 @@ function ListsScreen({
     const tabKey = renamingTab
     setRenamingTab(null)
     if (!name) return
-    if (tabKey === 'ideas') {
-      if (name === ideasName) return
-      await supabase.from('profiles').update({ ideas_name: name }).eq('id', myId)
-    } else {
-      const current = scopedLists.find((l) => l.id === tabKey)
-      if (current && name === current.name) return
-      await supabase.from('lists').update({ name }).eq('id', tabKey)
-    }
+    const current = scopedLists.find((l) => l.id === tabKey)
+    if (current && name === current.name) return
+    await supabase.from('lists').update({ name }).eq('id', tabKey)
     refresh()
   }
 
@@ -1916,7 +1627,7 @@ function ListsScreen({
             value={viewingUserId || 'me'}
             onChange={(e) => {
               setViewingUserId(e.target.value === 'me' ? null : e.target.value)
-              setActiveTab('ideas')
+              setActiveTab(null)
             }}
           >
             <option value="me">My lists</option>
@@ -1947,34 +1658,6 @@ function ListsScreen({
         </form>
       ) : (
         <div className="view-switch lists-switch">
-          {!ideasHidden &&
-            (renamingTab === 'ideas' ? (
-              <input
-                key="ideas-rename"
-                type="text"
-                className="tab-rename-input"
-                value={renameText}
-                autoFocus
-                onChange={(e) => setRenameText(e.target.value)}
-                onBlur={saveTabRename}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur()
-                  if (e.key === 'Escape') setRenamingTab(null)
-                }}
-              />
-            ) : (
-              <button
-                className={activeTab === 'ideas' ? 'active' : ''}
-                onClick={() =>
-                  activeTab === 'ideas' && !readOnly
-                    ? startRename('ideas', ideasName)
-                    : setActiveTab('ideas')
-                }
-              >
-                {ideasName}
-              </button>
-            ))}
-
           {scopedLists.map((l) =>
             renamingTab === l.id ? (
               <input
@@ -2016,25 +1699,13 @@ function ListsScreen({
         </div>
       )}
 
-      {activeTab === 'ideas' && !ideasHidden ? (
-        <Ideas
-          ideas={scopedIdeas}
-          loading={loading}
-          refresh={refresh}
-          groups={groups}
-          myId={myId}
-          nameFor={nameFor}
-          readOnly={readOnly}
-          onDeleted={() => setActiveTab(scopedLists[0]?.id || 'ideas')}
-          ideasName={ideasName}
-        />
-      ) : activeList ? (
+      {activeList ? (
         <CustomList
           key={activeList.id}
           list={activeList}
           items={listItems.filter((it) => it.list_id === activeList.id)}
           refresh={refresh}
-          onDeleted={() => setActiveTab('ideas')}
+          onDeleted={() => setActiveTab(null)}
           readOnly={readOnly}
         />
       ) : (
@@ -2151,7 +1822,18 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 }
 
 /* ---------- setup screen ---------- */
-function Setup({ profile, groups, members, invites, myId, refresh }) {
+function Setup({
+  profile,
+  groups,
+  members,
+  invites,
+  myId,
+  refresh,
+  friends,
+  friendInvites,
+  givenRewards,
+  incomingRewards,
+}) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
   const [savingName, setSavingName] = useState(false)
   const [newGroup, setNewGroup] = useState('')
@@ -2160,6 +1842,12 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState('')
+  const [friendEmail, setFriendEmail] = useState('')
+  const [friendNote, setFriendNote] = useState('')
+  const [rewardRecipient, setRewardRecipient] = useState('')
+  const [rewardStreak, setRewardStreak] = useState(7)
+  const [rewardText, setRewardText] = useState('')
+  const [rewardVisibility, setRewardVisibility] = useState('secret')
 
   async function saveName() {
     setSavingName(true)
@@ -2168,8 +1856,62 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
     refresh()
   }
 
-  async function toggleIdeasVisible(show) {
-    await supabase.from('profiles').update({ ideas_hidden: !show }).eq('id', myId)
+  async function inviteFriend(e) {
+    e.preventDefault()
+    const mail = friendEmail.trim().toLowerCase()
+    if (!mail) return
+    const { error } = await supabase.from('friend_invites').insert([
+      { invited_email: mail },
+    ])
+    setFriendEmail('')
+    setFriendNote(error ? error.message : `Invite sent to ${mail}`)
+    setTimeout(() => setFriendNote(''), 2500)
+  }
+
+  async function acceptFriendInvite(invite) {
+    await supabase
+      .from('friendships')
+      .insert([{ user_a: invite.invited_by, user_b: myId }])
+    await supabase
+      .from('friend_invites')
+      .update({ status: 'accepted' })
+      .eq('id', invite.id)
+    refresh()
+  }
+
+  async function declineFriendInvite(invite) {
+    await supabase
+      .from('friend_invites')
+      .update({ status: 'declined' })
+      .eq('id', invite.id)
+    refresh()
+  }
+
+  async function removeFriend(friendshipId) {
+    await supabase.from('friendships').delete().eq('id', friendshipId)
+    refresh()
+  }
+
+  async function createReward(e) {
+    e.preventDefault()
+    const text = rewardText.trim()
+    if (!rewardRecipient || !text || !rewardStreak) return
+    await supabase.from('streak_rewards').insert([
+      {
+        recipient_id: rewardRecipient,
+        target_streak: Math.max(1, Number(rewardStreak) || 1),
+        reward_text: text,
+        visibility: rewardVisibility,
+      },
+    ])
+    setRewardText('')
+    setRewardStreak(7)
+    setRewardVisibility('secret')
+    refresh()
+  }
+
+  async function deleteReward(id) {
+    await supabase.from('streak_rewards').delete().eq('id', id)
     refresh()
   }
 
@@ -2291,15 +2033,179 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
       )}
 
       <section className="setup-section">
-        <span className="section-title">Lists</span>
-        <label className="switch-row">
+        <span className="section-title">Friends</span>
+
+        {friendInvites.length > 0 && (
+          <div className="friend-invites">
+            {friendInvites.map((inv) => (
+              <div key={inv.id} className="invite-card">
+                <span>Friend request pending</span>
+                <div className="invite-actions">
+                  <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
+                    Accept
+                  </button>
+                  <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {friends.length === 0 ? (
+          <p className="setup-note">No friends yet. Invite someone below.</p>
+        ) : (
+          <div className="member-chips">
+            {friends.map((f) => (
+              <span key={f.id} className="chip">
+                {f.name}
+                <button
+                  className="chip-remove"
+                  onClick={() => removeFriend(f.friendshipId || f.id)}
+                  aria-label={`Remove ${f.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={inviteFriend} className="invite-row">
           <input
-            type="checkbox"
-            checked={!profile?.ideas_hidden}
-            onChange={(e) => toggleIdeasVisible(e.target.checked)}
+            type="email"
+            placeholder="Invite by email"
+            value={friendEmail}
+            onChange={(e) => setFriendEmail(e.target.value)}
           />
-          <span>Show the "{profile?.ideas_name || 'Ideas'}" tab</span>
-        </label>
+          <button type="submit" className="btn-outline">
+            Invite
+          </button>
+        </form>
+        {friendNote && <p className="setup-note">{friendNote}</p>}
+      </section>
+
+      <section className="setup-section">
+        <span className="section-title">Rewards</span>
+
+        {incomingRewards.length > 0 && (
+          <div className="rewards-incoming">
+            {incomingRewards.map((r) => (
+              <div key={r.id} className="reward-card">
+                {r.reached ? (
+                  r.visibility === 'visible' ? (
+                    <span>
+                      🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                    </span>
+                  ) : (
+                    <span>
+                      🎁 You earned a reward from {r.giver_name}!
+                    </span>
+                  )
+                ) : r.visibility === 'visible' ? (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
+                    receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                  </span>
+                ) : (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
+                    reward from {r.giver_name}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {givenRewards.length > 0 && (
+          <div className="rewards-given">
+            {givenRewards.map((r) => (
+              <div key={r.id} className="reward-card given">
+                <div className="reward-given-top">
+                  <span>
+                    For <strong>{r.recipient_name}</strong> at a {r.target_streak}-day
+                    streak
+                  </span>
+                  <button
+                    className="list-remove"
+                    onClick={() => deleteReward(r.id)}
+                    aria-label="Delete reward"
+                  >
+                    ×
+                  </button>
+                </div>
+                <span className="reward-given-detail">
+                  {r.reward_text} · {r.current_streak}/{r.target_streak} days
+                  {r.reached ? ' · reached!' : ''}
+                  {' · '}
+                  {r.visibility === 'secret'
+                    ? 'secret'
+                    : r.visibility === 'semi'
+                    ? 'semi-secret'
+                    : 'visible'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {friends.length === 0 ? (
+          <p className="setup-note">Add a friend above to set a reward for them.</p>
+        ) : (
+          <form onSubmit={createReward} className="reward-form">
+            <select
+              value={rewardRecipient}
+              onChange={(e) => setRewardRecipient(e.target.value)}
+              required
+            >
+              <option value="">For...</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <div className="reward-form-row">
+              <span>At a</span>
+              <input
+                type="number"
+                min="1"
+                className="repeat-num"
+                value={rewardStreak}
+                onChange={(e) => setRewardStreak(e.target.value)}
+              />
+              <span>day streak, give</span>
+            </div>
+            <input
+              type="text"
+              placeholder="What's the reward?"
+              value={rewardText}
+              onChange={(e) => setRewardText(e.target.value)}
+              required
+            />
+            <div className="prio-picker">
+              {[
+                { value: 'secret', label: 'Secret' },
+                { value: 'semi', label: 'Semi-secret' },
+                { value: 'visible', label: 'Visible' },
+              ].map((v) => (
+                <button
+                  type="button"
+                  key={v.value}
+                  className={rewardVisibility === v.value ? 'active' : ''}
+                  onClick={() => setRewardVisibility(v.value)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <button type="submit" className="btn-primary">
+              Set reward
+            </button>
+          </form>
+        )}
       </section>
 
       <section className="setup-section">
@@ -2390,7 +2296,7 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
         ) : (
           <div className="delete-confirm">
             <p className="setup-note">
-              This permanently deletes your account and all your tasks, ideas, and
+              This permanently deletes your account and all your tasks, lists, and
               groups you own. This can't be undone.
             </p>
             {deleteErr && <p className="auth-msg">{deleteErr}</p>}
@@ -2432,6 +2338,10 @@ function SetupScreen({
   myId,
   nameFor,
   refresh,
+  friends,
+  friendInvites,
+  givenRewards,
+  incomingRewards,
 }) {
   const [tab, setTab] = useState('settings')
 
@@ -2460,6 +2370,10 @@ function SetupScreen({
           invites={invites}
           myId={myId}
           refresh={refresh}
+          friends={friends}
+          friendInvites={friendInvites}
+          givenRewards={givenRewards}
+          incomingRewards={incomingRewards}
         />
       ) : (
         <Habits
@@ -2504,7 +2418,6 @@ function Shell({ session }) {
 
   const [screen, setScreen] = useState('tdl')
   const [tasks, setTasks] = useState(cached?.tasks || [])
-  const [ideas, setIdeas] = useState(cached?.ideas || [])
   const [lists, setLists] = useState(cached?.lists || [])
   const [listItems, setListItems] = useState(cached?.listItems || [])
   const [rewardLines, setRewardLines] = useState(cached?.rewardLines || [])
@@ -2512,6 +2425,10 @@ function Shell({ session }) {
   const [groups, setGroups] = useState(cached?.groups || [])
   const [members, setMembers] = useState(cached?.members || [])
   const [invites, setInvites] = useState(cached?.invites || [])
+  const [friends, setFriends] = useState(cached?.friends || [])
+  const [friendInvites, setFriendInvites] = useState(cached?.friendInvites || [])
+  const [givenRewards, setGivenRewards] = useState(cached?.givenRewards || [])
+  const [incomingRewards, setIncomingRewards] = useState(cached?.incomingRewards || [])
   // only block the UI when we have nothing at all to show
   const [loading, setLoading] = useState(!cached)
   const rolledRef = useRef(false)
@@ -2563,30 +2480,49 @@ function Shell({ session }) {
     lastFetchRef.current = Date.now()
 
     // Fire every read at once instead of waiting for them in sequence.
-    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes, listRes, listItemRes, rewardRes] =
-      await Promise.all([
-        supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
-        supabase.from('tasks').select('*'),
-        supabase.from('ideas').select('*'),
-        supabase.from('groups').select('*'),
-        supabase.from('group_members').select('*'),
-        supabase.from('group_invites').select('*').eq('status', 'pending'),
-        supabase.from('lists').select('*'),
-        supabase.from('list_items').select('*'),
-        supabase.from('reward_lines').select('*'),
-      ])
+    const [
+      profRes,
+      taskRes,
+      groupRes,
+      memberRes,
+      inviteRes,
+      listRes,
+      listItemRes,
+      rewardRes,
+      friendshipRes,
+      friendInviteRes,
+      givenRewardRes,
+      incomingRewardRes,
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
+      supabase.from('tasks').select('*'),
+      supabase.from('groups').select('*'),
+      supabase.from('group_members').select('*'),
+      supabase.from('group_invites').select('*').eq('status', 'pending'),
+      supabase.from('lists').select('*'),
+      supabase.from('list_items').select('*'),
+      supabase.from('reward_lines').select('*'),
+      supabase.from('friendships').select('*'),
+      supabase.from('friend_invites').select('*').eq('status', 'pending'),
+      supabase.rpc('my_given_rewards'),
+      supabase.rpc('my_incoming_rewards'),
+    ])
 
     let prof = profRes.data
     let taskData = taskRes.data || []
 
     // paint what we have right away; the rest is cheap follow-up work
     setTasks(taskData)
-    setIdeas(ideaRes.data || [])
     setLists(listRes.data || [])
     setListItems(listItemRes.data || [])
     setRewardLines(rewardRes.data || [])
     setGroups(groupRes.data || [])
     setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
+    setFriendInvites(
+      (friendInviteRes.data || []).filter((i) => i.invited_email === myEmail)
+    )
+    setGivenRewards(givenRewardRes.data || [])
+    setIncomingRewards(incomingRewardRes.data || [])
     if (prof) setProfile(prof)
     setLoading(false)
 
@@ -2623,6 +2559,29 @@ function Shell({ session }) {
     }
     setMembers(membersWithNames)
 
+    // resolve friend names (are_friends now permits reading their profile)
+    const friendshipData = friendshipRes.data || []
+    const friendPairs = friendshipData.map((f) => ({
+      friendshipId: f.id,
+      userId: f.user_a === myId ? f.user_b : f.user_a,
+    }))
+    const friendIds = friendPairs.map((f) => f.userId)
+    let friendsWithNames = []
+    if (friendIds.length) {
+      const { data: fprofs } = await supabase
+        .from('profiles')
+        .select('id,name,email')
+        .in('id', friendIds)
+      const fmap = {}
+      ;(fprofs || []).forEach((x) => (fmap[x.id] = x))
+      friendsWithNames = friendPairs.map((f) => ({
+        id: f.userId,
+        friendshipId: f.friendshipId,
+        name: fmap[f.userId]?.name || 'Friend',
+      }))
+    }
+    setFriends(friendsWithNames)
+
     // roll any missed recurring occurrences forward (once per app session).
     // Scoped to tasks I can actually write to - shared-in tasks from
     // someone else roll forward under their own session, not mine.
@@ -2653,13 +2612,16 @@ function Shell({ session }) {
 
     saveCache(myId, {
       tasks: taskData,
-      ideas: ideaRes.data || [],
       lists: listRes.data || [],
       listItems: listItemRes.data || [],
       rewardLines: rewardRes.data || [],
       groups: groupRes.data || [],
       members: membersWithNames,
       invites: (inviteRes.data || []).filter((i) => i.invited_email === myEmail),
+      friends: friendsWithNames,
+      friendInvites: (friendInviteRes.data || []).filter((i) => i.invited_email === myEmail),
+      givenRewards: givenRewardRes.data || [],
+      incomingRewards: incomingRewardRes.data || [],
       profile: prof,
     })
   }, [myId, myEmail, rollRecurring])
@@ -2743,15 +2705,10 @@ function Shell({ session }) {
         )}
         {screen === 'ideas' && (
           <ListsScreen
-            ideas={ideas}
             lists={lists}
             listItems={listItems}
-            loading={loading}
             refresh={refresh}
-            groups={groups}
             myId={myId}
-            nameFor={nameFor}
-            profile={profile}
             viewablePeople={viewablePeople}
           />
         )}
@@ -2767,6 +2724,10 @@ function Shell({ session }) {
             myId={myId}
             nameFor={nameFor}
             refresh={refresh}
+            friends={friends}
+            friendInvites={friendInvites}
+            givenRewards={givenRewards}
+            incomingRewards={incomingRewards}
           />
         )}
       </main>
