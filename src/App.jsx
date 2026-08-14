@@ -665,9 +665,48 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRec
 }
 
 /* ---------- streak celebration overlay ---------- */
-function StreakBurst({ n, onEnd }) {
+// shown once a day, whenever the day's list gets fully cleared. The line
+// shown comes from a per-user shuffled order through the shared
+// reward_lines pool (profiles.reward_order / reward_position) - guarantees
+// no repeat until every line has been seen, then reshuffles.
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+// picks the next line for this user, advancing (and persisting) their
+// shuffle state; reshuffles using the CURRENT pool once exhausted, so
+// lines added later only join in at the next reshuffle. Returns null if
+// the pool is empty (nothing configured yet).
+async function pickAndAdvanceReward(profile, rewardLines, myId) {
+  if (!rewardLines || rewardLines.length === 0) return null
+  const validIds = new Set(rewardLines.map((r) => r.id))
+  let order = Array.isArray(profile?.reward_order)
+    ? profile.reward_order.filter((id) => validIds.has(id))
+    : []
+  let pos = profile?.reward_position || 0
+
+  if (order.length === 0 || pos >= order.length) {
+    order = shuffle(rewardLines.map((r) => r.id))
+    pos = 0
+  }
+
+  const lineId = order[pos]
+  const lineObj = rewardLines.find((r) => r.id === lineId)
+  await supabase
+    .from('profiles')
+    .update({ reward_order: order, reward_position: pos + 1 })
+    .eq('id', myId)
+
+  return lineObj ? lineObj.text : null
+}
+
+function StreakBurst({ n, line, onEnd }) {
   useEffect(() => {
-    const t = setTimeout(onEnd, 2600)
+    const t = setTimeout(onEnd, 3400)
     return () => clearTimeout(t)
   }, [onEnd])
   return (
@@ -680,6 +719,7 @@ function StreakBurst({ n, onEnd }) {
         </div>
         <div className="streak-num">🔥 {n}</div>
         <div className="streak-caption">day streak!</div>
+        {line && <div className="streak-line">{line}</div>}
       </div>
     </div>
   )
@@ -1037,13 +1077,14 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
 }
 
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople }) {
+function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople, rewardLines }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
   const [addDate, setAddDate] = useState(null)
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
+  const [burstLine, setBurstLine] = useState(null)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1113,6 +1154,8 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
           .from('profiles')
           .update({ clear_streak: newStreak, clear_last: t0 })
           .eq('id', myId)
+        const line = await pickAndAdvanceReward(profile, rewardLines, myId)
+        setBurstLine(line)
         setBurst(newStreak)
       }
     }
@@ -1291,7 +1334,16 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         </div>
       )}
 
-      {burst !== null && <StreakBurst n={burst} onEnd={() => setBurst(null)} />}
+      {burst !== null && (
+        <StreakBurst
+          n={burst}
+          line={burstLine}
+          onEnd={() => {
+            setBurst(null)
+            setBurstLine(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -2455,6 +2507,7 @@ function Shell({ session }) {
   const [ideas, setIdeas] = useState(cached?.ideas || [])
   const [lists, setLists] = useState(cached?.lists || [])
   const [listItems, setListItems] = useState(cached?.listItems || [])
+  const [rewardLines, setRewardLines] = useState(cached?.rewardLines || [])
   const [profile, setProfile] = useState(cached?.profile || null)
   const [groups, setGroups] = useState(cached?.groups || [])
   const [members, setMembers] = useState(cached?.members || [])
@@ -2510,7 +2563,7 @@ function Shell({ session }) {
     lastFetchRef.current = Date.now()
 
     // Fire every read at once instead of waiting for them in sequence.
-    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes, listRes, listItemRes] =
+    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes, listRes, listItemRes, rewardRes] =
       await Promise.all([
         supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
         supabase.from('tasks').select('*'),
@@ -2520,6 +2573,7 @@ function Shell({ session }) {
         supabase.from('group_invites').select('*').eq('status', 'pending'),
         supabase.from('lists').select('*'),
         supabase.from('list_items').select('*'),
+        supabase.from('reward_lines').select('*'),
       ])
 
     let prof = profRes.data
@@ -2530,6 +2584,7 @@ function Shell({ session }) {
     setIdeas(ideaRes.data || [])
     setLists(listRes.data || [])
     setListItems(listItemRes.data || [])
+    setRewardLines(rewardRes.data || [])
     setGroups(groupRes.data || [])
     setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
     if (prof) setProfile(prof)
@@ -2601,6 +2656,7 @@ function Shell({ session }) {
       ideas: ideaRes.data || [],
       lists: listRes.data || [],
       listItems: listItemRes.data || [],
+      rewardLines: rewardRes.data || [],
       groups: groupRes.data || [],
       members: membersWithNames,
       invites: (inviteRes.data || []).filter((i) => i.invited_email === myEmail),
@@ -2682,6 +2738,7 @@ function Shell({ session }) {
             nameFor={nameFor}
             profile={profile}
             viewablePeople={viewablePeople}
+            rewardLines={rewardLines}
           />
         )}
         {screen === 'ideas' && (
