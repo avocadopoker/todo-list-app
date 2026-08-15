@@ -621,6 +621,10 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   border-radius: 20px;
   margin-bottom: 14px;
 }
+.token-tag {
+  color: #b8860b;
+  font-weight: 700;
+}
 
 /* Done bar (was delete bar) keeps the same shell but the action reads green */
 .done-bar button { background: var(--green); }

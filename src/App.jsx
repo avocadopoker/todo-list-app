@@ -1149,9 +1149,21 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     if (requiredToday.length > 0 && remaining === 0 && profile) {
       if (profile.clear_last !== t0) {
         const newStreak = (profile.clear_streak || 0) + 1
+        let newProgress = (profile.token_progress || 0) + 1
+        let newTokens = profile.streak_tokens || 0
+        if (newProgress >= 10) {
+          newTokens += 1
+          newProgress = 0
+        }
         await supabase
           .from('profiles')
-          .update({ clear_streak: newStreak, clear_last: t0 })
+          .update({
+            clear_streak: newStreak,
+            clear_last: t0,
+            token_progress: newProgress,
+            streak_tokens: newTokens,
+            streak_checked_through: t0,
+          })
           .eq('id', myId)
         const line = await pickAndAdvanceReward(profile, rewardLines, myId)
         setBurstLine(line)
@@ -1246,6 +1258,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
                 {profile.clear_streak > 0
                   ? `🔥 ${profile.clear_streak} day streak`
                   : '0 Day streak 😭'}
+                {profile.streak_tokens > 0 && (
+                  <span className="token-tag"> 🪙 {profile.streak_tokens}</span>
+                )}
               </span>
             )
           )}
@@ -1270,6 +1285,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
             {profile.clear_streak > 0
               ? `🔥 ${profile.clear_streak} day streak`
               : '0 Day streak 😭'}
+            {profile.streak_tokens > 0 && (
+              <span className="token-tag"> 🪙 {profile.streak_tokens}</span>
+            )}
           </div>
         )
       )}
@@ -2597,15 +2615,42 @@ function Shell({ session }) {
       }
     }
 
-    // daily clear-streak resets if a prior day was left uncleared
-    // (scoped to my own + group tasks - tasks shared into view from
-    // someone else shouldn't affect my personal streak)
+    // Streak-token mechanic: catch up on any fully-missed calendar days
+    // since we last checked. streak_checked_through marks the last date
+    // whose status (cleared or missed) has already been applied - it's
+    // separate from clear_last (which only means "the day the list was
+    // actually cleared") so this never re-penalizes the same gap twice.
     const t0 = today()
-    const myScopedTasks = taskData.filter((t) => t.user_id === myId || t.assigned_group_id)
-    const hasOverdue = myScopedTasks.some((t) => t.due_date && t.due_date < t0)
-    if (prof && hasOverdue && prof.clear_streak > 0 && prof.clear_last !== t0) {
-      await supabase.from('profiles').update({ clear_streak: 0 }).eq('id', myId)
-      prof = { ...prof, clear_streak: 0 }
+    const checkedThrough = prof?.streak_checked_through || prof?.clear_last || null
+    const yesterday = shiftDays(t0, -1)
+    if (prof && checkedThrough && checkedThrough < yesterday) {
+      const missedDays = daysBetween(checkedThrough, t0) - 1
+      let streak = prof.clear_streak || 0
+      let tokens = prof.streak_tokens || 0
+      // token_progress is untouched here on purpose - it only ever
+      // advances on a cleared day, and simply pauses on a missed one
+      for (let i = 0; i < missedDays; i++) {
+        if (tokens > 0) {
+          tokens -= 1
+          streak = Math.max(streak - 1, 0)
+        } else {
+          streak = 0
+        }
+      }
+      await supabase
+        .from('profiles')
+        .update({
+          clear_streak: streak,
+          streak_tokens: tokens,
+          streak_checked_through: yesterday,
+        })
+        .eq('id', myId)
+      prof = {
+        ...prof,
+        clear_streak: streak,
+        streak_tokens: tokens,
+        streak_checked_through: yesterday,
+      }
       setProfile(prof)
     }
 
