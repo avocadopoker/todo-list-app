@@ -1838,9 +1838,102 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
   )
 }
 
-/* ---------- setup screen ---------- */
-function Setup({
-  profile,
+/* ---------- setup screen (just name / sign out / delete) ---------- */
+function Setup({ profile, myId, refresh }) {
+  const [nameInput, setNameInput] = useState(profile?.name || '')
+  const [savingName, setSavingName] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteErr, setDeleteErr] = useState('')
+
+  async function saveName() {
+    setSavingName(true)
+    await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
+    setSavingName(false)
+    refresh()
+  }
+
+  async function deleteAccount() {
+    setDeleting(true)
+    setDeleteErr('')
+    const { error } = await supabase.rpc('delete_current_user')
+    if (error) {
+      setDeleteErr(error.message)
+      setDeleting(false)
+      return
+    }
+    try {
+      localStorage.removeItem(CACHE_KEY)
+    } catch {
+      /* ignore */
+    }
+    await supabase.auth.signOut()
+  }
+
+  return (
+    <div className="setup">
+      <h2>Setup</h2>
+
+      <section className="setup-section">
+        <span className="section-title">Your name</span>
+        <div className="name-row">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+          />
+          <button className="btn-primary" onClick={saveName} disabled={savingName}>
+            {savingName ? '...' : 'Save'}
+          </button>
+        </div>
+      </section>
+
+      <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
+        Sign out
+      </button>
+
+      <section className="setup-section danger">
+        <span className="section-title">Account</span>
+        {!confirmDelete ? (
+          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
+            Delete account
+          </button>
+        ) : (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              This permanently deletes your account and all your tasks, lists, and
+              groups you own. This can't be undone.
+            </p>
+            {deleteErr && <p className="auth-msg">{deleteErr}</p>}
+            <div className="invite-actions">
+              <button
+                className="btn-danger"
+                onClick={deleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete everything'}
+              </button>
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  setConfirmDelete(false)
+                  setDeleteErr('')
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+/* ---------- social screen: Groups + Friends subtabs ---------- */
+function Social({
   groups,
   members,
   invites,
@@ -1851,25 +1944,74 @@ function Setup({
   givenRewards,
   incomingRewards,
 }) {
-  const [nameInput, setNameInput] = useState(profile?.name || '')
-  const [savingName, setSavingName] = useState(false)
+  const [tab, setTab] = useState('groups')
   const [newGroup, setNewGroup] = useState('')
   const [inviteEmail, setInviteEmail] = useState({})
   const [note, setNote] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteErr, setDeleteErr] = useState('')
   const [friendEmail, setFriendEmail] = useState('')
   const [friendNote, setFriendNote] = useState('')
   const [rewardRecipient, setRewardRecipient] = useState('')
   const [rewardStreak, setRewardStreak] = useState(7)
   const [rewardText, setRewardText] = useState('')
   const [rewardVisibility, setRewardVisibility] = useState('secret')
+  const [expandedGroupId, setExpandedGroupId] = useState(null)
 
-  async function saveName() {
-    setSavingName(true)
-    await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
-    setSavingName(false)
+  async function createGroup(e) {
+    e.preventDefault()
+    const gname = newGroup.trim()
+    if (!gname) return
+    const { data, error } = await supabase
+      .from('groups')
+      .insert([{ name: gname }])
+      .select()
+    if (!error && data && data[0]) {
+      await supabase
+        .from('group_members')
+        .insert([{ group_id: data[0].id, user_id: myId }])
+    }
+    setNewGroup('')
+    refresh()
+  }
+
+  async function sendInvite(group) {
+    const mail = (inviteEmail[group.id] || '').trim().toLowerCase()
+    if (!mail) return
+    const { error } = await supabase.from('group_invites').insert([
+      { group_id: group.id, group_name: group.name, invited_email: mail },
+    ])
+    setInviteEmail({ ...inviteEmail, [group.id]: '' })
+    setNote(error ? error.message : `Invite sent to ${mail}`)
+    setTimeout(() => setNote(''), 2500)
+  }
+
+  async function acceptInvite(inv) {
+    await supabase
+      .from('group_members')
+      .insert([{ group_id: inv.group_id, user_id: myId }])
+    await supabase
+      .from('group_invites')
+      .update({ status: 'accepted' })
+      .eq('id', inv.id)
+    refresh()
+  }
+
+  async function declineInvite(inv) {
+    await supabase
+      .from('group_invites')
+      .update({ status: 'declined' })
+      .eq('id', inv.id)
+    refresh()
+  }
+
+  const membersOf = (gid) => members.filter((m) => m.group_id === gid)
+  const myRowIn = (gid) => members.find((m) => m.group_id === gid && m.user_id === myId)
+
+  async function toggleShareTasks(gid, next) {
+    await supabase
+      .from('group_members')
+      .update({ share_tasks: next })
+      .eq('group_id', gid)
+      .eq('user_id', myId)
     refresh()
   }
 
@@ -1932,413 +2074,296 @@ function Setup({
     refresh()
   }
 
-  async function deleteAccount() {
-    setDeleting(true)
-    setDeleteErr('')
-    const { error } = await supabase.rpc('delete_current_user')
-    if (error) {
-      setDeleteErr(error.message)
-      setDeleting(false)
-      return
-    }
-    try {
-      localStorage.removeItem(CACHE_KEY)
-    } catch {
-      /* ignore */
-    }
-    await supabase.auth.signOut()
-  }
-
-  async function createGroup(e) {
-    e.preventDefault()
-    const gname = newGroup.trim()
-    if (!gname) return
-    const { data, error } = await supabase
-      .from('groups')
-      .insert([{ name: gname }])
-      .select()
-    if (!error && data && data[0]) {
-      await supabase
-        .from('group_members')
-        .insert([{ group_id: data[0].id, user_id: myId }])
-    }
-    setNewGroup('')
-    refresh()
-  }
-
-  async function sendInvite(group) {
-    const mail = (inviteEmail[group.id] || '').trim().toLowerCase()
-    if (!mail) return
-    const { error } = await supabase.from('group_invites').insert([
-      { group_id: group.id, group_name: group.name, invited_email: mail },
-    ])
-    setInviteEmail({ ...inviteEmail, [group.id]: '' })
-    setNote(error ? error.message : `Invite sent to ${mail}`)
-    setTimeout(() => setNote(''), 2500)
-  }
-
-  async function acceptInvite(inv) {
-    await supabase
-      .from('group_members')
-      .insert([{ group_id: inv.group_id, user_id: myId }])
-    await supabase
-      .from('group_invites')
-      .update({ status: 'accepted' })
-      .eq('id', inv.id)
-    refresh()
-  }
-
-  async function declineInvite(inv) {
-    await supabase
-      .from('group_invites')
-      .update({ status: 'declined' })
-      .eq('id', inv.id)
-    refresh()
-  }
-
-  const membersOf = (gid) => members.filter((m) => m.group_id === gid)
-  const myRowIn = (gid) => members.find((m) => m.group_id === gid && m.user_id === myId)
-  const [expandedGroupId, setExpandedGroupId] = useState(null)
-
-  async function toggleShareTasks(gid, next) {
-    await supabase
-      .from('group_members')
-      .update({ share_tasks: next })
-      .eq('group_id', gid)
-      .eq('user_id', myId)
-    refresh()
-  }
-
   return (
     <div className="setup">
-      <h2>Setup</h2>
+      <h2>Social</h2>
 
-      <section className="setup-section">
-        <span className="section-title">Your name</span>
-        <div className="name-row">
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
-          />
-          <button className="btn-primary" onClick={saveName} disabled={savingName}>
-            {savingName ? '...' : 'Save'}
-          </button>
-        </div>
-      </section>
+      <div className="view-switch" style={{ marginBottom: '22px' }}>
+        <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>
+          Groups
+        </button>
+        <button className={tab === 'friends' ? 'active' : ''} onClick={() => setTab('friends')}>
+          Friends
+        </button>
+      </div>
 
-      {invites.length > 0 && (
-        <section className="setup-section">
-          <span className="section-title">Invites</span>
-          {invites.map((inv) => (
-            <div key={inv.id} className="invite-card">
-              <span>
-                Join <strong>{inv.group_name}</strong>
-              </span>
-              <div className="invite-actions">
-                <button className="btn-primary" onClick={() => acceptInvite(inv)}>
-                  Accept
-                </button>
-                <button className="btn-outline" onClick={() => declineInvite(inv)}>
-                  Decline
-                </button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      <section className="setup-section">
-        <span className="section-title">Friends</span>
-
-        {friendInvites.length > 0 && (
-          <div className="friend-invites">
-            {friendInvites.map((inv) => (
-              <div key={inv.id} className="invite-card">
-                <span>Friend request pending</span>
-                <div className="invite-actions">
-                  <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
-                    Accept
-                  </button>
-                  <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
-                    Decline
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {friends.length === 0 ? (
-          <p className="setup-note">No friends yet. Invite someone below.</p>
-        ) : (
-          <div className="member-chips">
-            {friends.map((f) => (
-              <span key={f.id} className="chip">
-                {f.name}
-                <button
-                  className="chip-remove"
-                  onClick={() => removeFriend(f.friendshipId || f.id)}
-                  aria-label={`Remove ${f.name}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <form onSubmit={inviteFriend} className="invite-row">
-          <input
-            type="email"
-            placeholder="Invite by email"
-            value={friendEmail}
-            onChange={(e) => setFriendEmail(e.target.value)}
-          />
-          <button type="submit" className="btn-outline">
-            Invite
-          </button>
-        </form>
-        {friendNote && <p className="setup-note">{friendNote}</p>}
-      </section>
-
-      <section className="setup-section">
-        <span className="section-title">Rewards</span>
-
-        {incomingRewards.length > 0 && (
-          <div className="rewards-incoming">
-            {incomingRewards.map((r) => (
-              <div key={r.id} className="reward-card">
-                {r.reached ? (
-                  r.visibility === 'visible' ? (
-                    <span>
-                      🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
-                    </span>
-                  ) : (
-                    <span>
-                      🎁 You earned a reward from {r.giver_name}!
-                    </span>
-                  )
-                ) : r.visibility === 'visible' ? (
+      {tab === 'groups' ? (
+        <>
+          {invites.length > 0 && (
+            <section className="setup-section">
+              <span className="section-title">Invites</span>
+              {invites.map((inv) => (
+                <div key={inv.id} className="invite-card">
                   <span>
-                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
-                    receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                    Join <strong>{inv.group_name}</strong>
                   </span>
-                ) : (
-                  <span>
-                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
-                    reward from {r.giver_name}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {givenRewards.length > 0 && (
-          <div className="rewards-given">
-            {givenRewards.map((r) => (
-              <div key={r.id} className="reward-card given">
-                <div className="reward-given-top">
-                  <span>
-                    For <strong>{r.recipient_name}</strong> at a {r.target_streak}-day
-                    streak
-                  </span>
-                  <button
-                    className="list-remove"
-                    onClick={() => deleteReward(r.id)}
-                    aria-label="Delete reward"
-                  >
-                    ×
-                  </button>
-                </div>
-                <span className="reward-given-detail">
-                  {r.reward_text} · {r.current_streak}/{r.target_streak} days
-                  {r.reached ? ' · reached!' : ''}
-                  {' · '}
-                  {r.visibility === 'secret'
-                    ? 'secret'
-                    : r.visibility === 'semi'
-                    ? 'semi-secret'
-                    : 'visible'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {friends.length === 0 ? (
-          <p className="setup-note">Add a friend above to set a reward for them.</p>
-        ) : (
-          <form onSubmit={createReward} className="reward-form">
-            <select
-              value={rewardRecipient}
-              onChange={(e) => setRewardRecipient(e.target.value)}
-              required
-            >
-              <option value="">For...</option>
-              {friends.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            <div className="reward-form-row">
-              <span>At a</span>
-              <input
-                type="number"
-                min="1"
-                className="repeat-num"
-                value={rewardStreak}
-                onChange={(e) => setRewardStreak(e.target.value)}
-              />
-              <span>day streak, give</span>
-            </div>
-            <input
-              type="text"
-              placeholder="What's the reward?"
-              value={rewardText}
-              onChange={(e) => setRewardText(e.target.value)}
-              required
-            />
-            <div className="prio-picker">
-              {[
-                { value: 'secret', label: 'Secret' },
-                { value: 'semi', label: 'Semi-secret' },
-                { value: 'visible', label: 'Visible' },
-              ].map((v) => (
-                <button
-                  type="button"
-                  key={v.value}
-                  className={rewardVisibility === v.value ? 'active' : ''}
-                  onClick={() => setRewardVisibility(v.value)}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-            <button type="submit" className="btn-primary">
-              Set reward
-            </button>
-          </form>
-        )}
-      </section>
-
-      <section className="setup-section">
-        <span className="section-title">Groups</span>
-        {groups.length === 0 && (
-          <p className="setup-note">No groups yet. Create one below.</p>
-        )}
-        {groups.map((g) => {
-          const owner = g.owner_id === myId
-          const open = expandedGroupId === g.id
-          return (
-            <div key={g.id} className={`group-card${open ? ' open' : ''}`}>
-              <button
-                className="group-head group-head-btn"
-                onClick={() => setExpandedGroupId(open ? null : g.id)}
-                aria-expanded={open}
-              >
-                <span className="group-head-left">
-                  <strong>{g.name}</strong>
-                  <span className={owner ? 'owner-tag' : 'member-tag'}>
-                    {owner ? 'owner' : 'member'}
-                  </span>
-                </span>
-                <span className="group-caret">{open ? '▾' : '▸'}</span>
-              </button>
-              {open && (
-                <div className="group-body">
-                  <div className="member-chips">
-                    {membersOf(g.id).map((m) => (
-                      <span key={m.user_id} className="chip">
-                        {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
-                      </span>
-                    ))}
+                  <div className="invite-actions">
+                    <button className="btn-primary" onClick={() => acceptInvite(inv)}>
+                      Accept
+                    </button>
+                    <button className="btn-outline" onClick={() => declineInvite(inv)}>
+                      Decline
+                    </button>
                   </div>
-                  <label className="switch-row share-row">
-                    <input
-                      type="checkbox"
-                      checked={!!myRowIn(g.id)?.share_tasks}
-                      onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
-                    />
-                    <span>Let this group view my tasks and lists (read-only)</span>
-                  </label>
-                  {owner && (
-                    <div className="invite-row">
-                      <input
-                        type="email"
-                        placeholder="Invite by email"
-                        value={inviteEmail[g.id] || ''}
-                        onChange={(e) =>
-                          setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
-                        }
-                      />
-                      <button className="btn-outline" onClick={() => sendInvite(g)}>
-                        Invite
-                      </button>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="setup-section">
+            <span className="section-title">Groups</span>
+            {groups.length === 0 && (
+              <p className="setup-note">No groups yet. Create one below.</p>
+            )}
+            {groups.map((g) => {
+              const owner = g.owner_id === myId
+              const open = expandedGroupId === g.id
+              return (
+                <div key={g.id} className={`group-card${open ? ' open' : ''}`}>
+                  <button
+                    className="group-head group-head-btn"
+                    onClick={() => setExpandedGroupId(open ? null : g.id)}
+                    aria-expanded={open}
+                  >
+                    <span className="group-head-left">
+                      <strong>{g.name}</strong>
+                      <span className={owner ? 'owner-tag' : 'member-tag'}>
+                        {owner ? 'owner' : 'member'}
+                      </span>
+                    </span>
+                    <span className="group-caret">{open ? '\u25be' : '\u25b8'}</span>
+                  </button>
+                  {open && (
+                    <div className="group-body">
+                      <div className="member-chips">
+                        {membersOf(g.id).map((m) => (
+                          <span key={m.user_id} className="chip">
+                            {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
+                          </span>
+                        ))}
+                      </div>
+                      <label className="switch-row share-row">
+                        <input
+                          type="checkbox"
+                          checked={!!myRowIn(g.id)?.share_tasks}
+                          onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
+                        />
+                        <span>Let this group view my tasks and lists (read-only)</span>
+                      </label>
+                      {owner && (
+                        <div className="invite-row">
+                          <input
+                            type="email"
+                            placeholder="Invite by email"
+                            value={inviteEmail[g.id] || ''}
+                            onChange={(e) =>
+                              setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
+                            }
+                          />
+                          <button className="btn-outline" onClick={() => sendInvite(g)}>
+                            Invite
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          )
-        })}
+              )
+            })}
 
-        <form onSubmit={createGroup} className="new-group-row">
-          <input
-            type="text"
-            placeholder="New group name"
-            value={newGroup}
-            onChange={(e) => setNewGroup(e.target.value)}
-          />
-          <button type="submit" className="btn-primary">
-            Create
-          </button>
-        </form>
-        {note && <p className="setup-note">{note}</p>}
-      </section>
-
-      <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
-        Sign out
-      </button>
-
-      <section className="setup-section danger">
-        <span className="section-title">Account</span>
-        {!confirmDelete ? (
-          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
-            Delete account
-          </button>
-        ) : (
-          <div className="delete-confirm">
-            <p className="setup-note">
-              This permanently deletes your account and all your tasks, lists, and
-              groups you own. This can't be undone.
-            </p>
-            {deleteErr && <p className="auth-msg">{deleteErr}</p>}
-            <div className="invite-actions">
-              <button
-                className="btn-danger"
-                onClick={deleteAccount}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Yes, delete everything'}
+            <form onSubmit={createGroup} className="new-group-row">
+              <input
+                type="text"
+                placeholder="New group name"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+              />
+              <button type="submit" className="btn-primary">
+                Create
               </button>
-              <button
-                className="btn-outline"
-                onClick={() => {
-                  setConfirmDelete(false)
-                  setDeleteErr('')
-                }}
-                disabled={deleting}
-              >
-                Cancel
+            </form>
+            {note && <p className="setup-note">{note}</p>}
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="setup-section">
+            <span className="section-title">Friends</span>
+
+            {friendInvites.length > 0 && (
+              <div className="friend-invites">
+                {friendInvites.map((inv) => (
+                  <div key={inv.id} className="invite-card">
+                    <span>Friend request pending</span>
+                    <div className="invite-actions">
+                      <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
+                        Accept
+                      </button>
+                      <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {friends.length === 0 ? (
+              <p className="setup-note">No friends yet. Invite someone below.</p>
+            ) : (
+              <div className="member-chips">
+                {friends.map((f) => (
+                  <span key={f.id} className="chip">
+                    {f.name}
+                    <button
+                      className="chip-remove"
+                      onClick={() => removeFriend(f.friendshipId || f.id)}
+                      aria-label={`Remove ${f.name}`}
+                    >
+                      \u00d7
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={inviteFriend} className="invite-row">
+              <input
+                type="email"
+                placeholder="Invite by email"
+                value={friendEmail}
+                onChange={(e) => setFriendEmail(e.target.value)}
+              />
+              <button type="submit" className="btn-outline">
+                Invite
               </button>
-            </div>
-          </div>
-        )}
-      </section>
+            </form>
+            {friendNote && <p className="setup-note">{friendNote}</p>}
+          </section>
+
+          <section className="setup-section">
+            <span className="section-title">Rewards</span>
+
+            {incomingRewards.length > 0 && (
+              <div className="rewards-incoming">
+                {incomingRewards.map((r) => (
+                  <div key={r.id} className="reward-card">
+                    {r.reached ? (
+                      r.visibility === 'visible' ? (
+                        <span>
+                          \ud83c\udf81 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                        </span>
+                      ) : (
+                        <span>
+                          \ud83c\udf81 You earned a reward from {r.giver_name}!
+                        </span>
+                      )
+                    ) : r.visibility === 'visible' ? (
+                      <span>
+                        {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
+                        receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                      </span>
+                    ) : (
+                      <span>
+                        {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
+                        reward from {r.giver_name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {givenRewards.length > 0 && (
+              <div className="rewards-given">
+                {givenRewards.map((r) => (
+                  <div key={r.id} className="reward-card given">
+                    <div className="reward-given-top">
+                      <span>
+                        For <strong>{r.recipient_name}</strong> at a {r.target_streak}-day
+                        streak
+                      </span>
+                      <button
+                        className="list-remove"
+                        onClick={() => deleteReward(r.id)}
+                        aria-label="Delete reward"
+                      >
+                        \u00d7
+                      </button>
+                    </div>
+                    <span className="reward-given-detail">
+                      {r.reward_text} \u00b7 {r.current_streak}/{r.target_streak} days
+                      {r.reached ? ' \u00b7 reached!' : ''}
+                      {' \u00b7 '}
+                      {r.visibility === 'secret'
+                        ? 'secret'
+                        : r.visibility === 'semi'
+                        ? 'semi-secret'
+                        : 'visible'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {friends.length === 0 ? (
+              <p className="setup-note">Add a friend above to set a reward for them.</p>
+            ) : (
+              <form onSubmit={createReward} className="reward-form">
+                <select
+                  value={rewardRecipient}
+                  onChange={(e) => setRewardRecipient(e.target.value)}
+                  required
+                >
+                  <option value="">For...</option>
+                  {friends.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="reward-form-row">
+                  <span>At a</span>
+                  <input
+                    type="number"
+                    min="1"
+                    className="repeat-num"
+                    value={rewardStreak}
+                    onChange={(e) => setRewardStreak(e.target.value)}
+                  />
+                  <span>day streak, give</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="What's the reward?"
+                  value={rewardText}
+                  onChange={(e) => setRewardText(e.target.value)}
+                  required
+                />
+                <div className="prio-picker">
+                  {[
+                    { value: 'secret', label: 'Secret' },
+                    { value: 'semi', label: 'Semi-secret' },
+                    { value: 'visible', label: 'Visible' },
+                  ].map((v) => (
+                    <button
+                      type="button"
+                      key={v.value}
+                      className={rewardVisibility === v.value ? 'active' : ''}
+                      onClick={() => setRewardVisibility(v.value)}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+                <button type="submit" className="btn-primary">
+                  Set reward
+                </button>
+              </form>
+            )}
+          </section>
+        </>
+      )}
     </div>
   )
 }
@@ -2377,11 +2402,28 @@ function SetupScreen({
         >
           Habits
         </button>
+        <button
+          className={tab === 'social' ? 'active' : ''}
+          onClick={() => setTab('social')}
+        >
+          Social
+        </button>
       </div>
 
       {tab === 'settings' ? (
-        <Setup
-          profile={profile}
+        <Setup profile={profile} myId={myId} refresh={refresh} />
+      ) : tab === 'habits' ? (
+        <Habits
+          tasks={tasks}
+          taskLoading={taskLoading}
+          refresh={refresh}
+          myId={myId}
+          nameFor={nameFor}
+          people={people}
+          groups={groups}
+        />
+      ) : (
+        <Social
           groups={groups}
           members={members}
           invites={invites}
@@ -2391,16 +2433,6 @@ function SetupScreen({
           friendInvites={friendInvites}
           givenRewards={givenRewards}
           incomingRewards={incomingRewards}
-        />
-      ) : (
-        <Habits
-          tasks={tasks}
-          taskLoading={taskLoading}
-          refresh={refresh}
-          myId={myId}
-          nameFor={nameFor}
-          people={people}
-          groups={groups}
         />
       )}
     </div>
