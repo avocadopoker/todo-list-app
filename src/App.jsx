@@ -2131,7 +2131,7 @@ function Social({
                         {owner ? 'owner' : 'member'}
                       </span>
                     </span>
-                    <span className="group-caret">{open ? '\u25be' : '\u25b8'}</span>
+                    <span className="group-caret">{open ? '▾' : '▸'}</span>
                   </button>
                   {open && (
                     <div className="group-body">
@@ -2220,7 +2220,7 @@ function Social({
                       onClick={() => removeFriend(f.friendshipId || f.id)}
                       aria-label={`Remove ${f.name}`}
                     >
-                      \u00d7
+                      ×
                     </button>
                   </span>
                 ))}
@@ -2251,11 +2251,11 @@ function Social({
                     {r.reached ? (
                       r.visibility === 'visible' ? (
                         <span>
-                          \ud83c\udf81 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                          🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
                         </span>
                       ) : (
                         <span>
-                          \ud83c\udf81 You earned a reward from {r.giver_name}!
+                          🎁 You earned a reward from {r.giver_name}!
                         </span>
                       )
                     ) : r.visibility === 'visible' ? (
@@ -2288,13 +2288,13 @@ function Social({
                         onClick={() => deleteReward(r.id)}
                         aria-label="Delete reward"
                       >
-                        \u00d7
+                        ×
                       </button>
                     </div>
                     <span className="reward-given-detail">
-                      {r.reward_text} \u00b7 {r.current_streak}/{r.target_streak} days
-                      {r.reached ? ' \u00b7 reached!' : ''}
-                      {' \u00b7 '}
+                      {r.reward_text} · {r.current_streak}/{r.target_streak} days
+                      {r.reached ? ' · reached!' : ''}
+                      {' · '}
                       {r.visibility === 'secret'
                         ? 'secret'
                         : r.visibility === 'semi'
