@@ -491,7 +491,9 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   gap: 8px;
 }
 .friend-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   text-align: left;
   background: var(--paper);
@@ -504,6 +506,11 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   color: var(--ink);
 }
 .friend-btn:hover { border-color: var(--red); color: var(--red-press); }
+.friend-btn-streak {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #c2410c;
+}
 .friend-back {
   margin-bottom: 8px;
   padding: 0;
@@ -514,6 +521,27 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   font-weight: 700;
   margin: 0 0 18px;
 }
+.reward-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.reward-add-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.reward-add-btn:hover { background: var(--red-press); }
 .chip-remove:hover { color: var(--red); }
 
 /* ---------- rewards ---------- */

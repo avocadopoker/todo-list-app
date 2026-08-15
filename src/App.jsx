@@ -1950,6 +1950,7 @@ function Social({
   const [expandedGroupId, setExpandedGroupId] = useState(null)
   const [selectedFriendId, setSelectedFriendId] = useState(null)
   const [confirmRemoveFriend, setConfirmRemoveFriend] = useState(false)
+  const [creatingReward, setCreatingReward] = useState(false)
 
   async function createGroup(e) {
     e.preventDefault()
@@ -2063,6 +2064,7 @@ function Social({
     setRewardText('')
     setRewardStreak(7)
     setRewardVisibility('secret')
+    setCreatingReward(false)
     refresh()
   }
 
@@ -2074,12 +2076,12 @@ function Social({
   const selectedFriend = selectedFriendId
     ? friends.find((f) => f.id === selectedFriendId)
     : null
-  const myRewardForFriend = selectedFriendId
-    ? givenRewards.find((r) => r.recipient_id === selectedFriendId)
-    : null
-  const friendRewardForMe = selectedFriendId
-    ? incomingRewards.find((r) => r.giver_id === selectedFriendId)
-    : null
+  const myRewardsForFriend = selectedFriendId
+    ? givenRewards.filter((r) => r.recipient_id === selectedFriendId)
+    : []
+  const friendRewardsForMe = selectedFriendId
+    ? incomingRewards.filter((r) => r.giver_id === selectedFriendId)
+    : []
 
   return (
     <div className="setup">
@@ -2198,31 +2200,49 @@ function Social({
               </button>
               <h3 className="friend-detail-name">{selectedFriend.name}</h3>
 
-              <span className="section-title">Your rewards for {selectedFriend.name}</span>
-              {myRewardForFriend ? (
-                <div className="reward-card given">
+              <div className="reward-section-head">
+                <span className="section-title">Your rewards for {selectedFriend.name}</span>
+                {!creatingReward && (
+                  <button
+                    className="reward-add-btn"
+                    onClick={() => setCreatingReward(true)}
+                    aria-label="Add a reward"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+
+              {myRewardsForFriend.length === 0 && !creatingReward && (
+                <p className="setup-note">No rewards set yet.</p>
+              )}
+
+              {myRewardsForFriend.map((r) => (
+                <div key={r.id} className="reward-card given">
                   <div className="reward-given-top">
-                    <span>At {myRewardForFriend.target_streak}-day streak</span>
+                    <span>At {r.target_streak}-day streak</span>
                     <button
                       className="list-remove"
-                      onClick={() => deleteReward(myRewardForFriend.id)}
+                      onClick={() => deleteReward(r.id)}
                       aria-label="Delete reward"
                     >
                       ×
                     </button>
                   </div>
                   <span className="reward-given-detail">
-                    {myRewardForFriend.current_streak}/{myRewardForFriend.target_streak} days
-                    {myRewardForFriend.reached ? ' reached!' : ''}{' '}
-                    {myRewardForFriend.visibility === 'secret'
+                    {r.current_streak}/{r.target_streak} days
+                    {r.reached ? ' reached!' : ''} ·{' '}
+                    {r.visibility === 'secret'
                       ? 'secret'
-                      : myRewardForFriend.visibility === 'semi'
+                      : r.visibility === 'semi'
                       ? 'semi-secret'
                       : 'visible'}{' '}
-                    {myRewardForFriend.reward_text}
+                    · {r.reward_text}
                   </span>
                 </div>
-              ) : (
+              ))}
+
+              {creatingReward && (
                 <form onSubmit={createReward} className="reward-form">
                   <div className="reward-form-row">
                     <span>At</span>
@@ -2258,39 +2278,50 @@ function Social({
                       </button>
                     ))}
                   </div>
-                  <button type="submit" className="btn-primary">
-                    Set reward
-                  </button>
+                  <div className="invite-actions">
+                    <button type="submit" className="btn-primary">
+                      Set reward
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => setCreatingReward(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               )}
 
-              {friendRewardForMe && (
+              {friendRewardsForMe.length > 0 && (
                 <>
-                  <span className="section-title">{selectedFriend.name}'s reward for you</span>
-                  <div className="reward-card">
-                    {friendRewardForMe.reached ? (
-                      friendRewardForMe.visibility === 'visible' ? (
+                  <span className="section-title">{selectedFriend.name}'s rewards for you</span>
+                  {friendRewardsForMe.map((r) => (
+                    <div key={r.id} className="reward-card">
+                      {r.reached ? (
+                        r.visibility === 'visible' ? (
+                          <span>
+                            🎁 You earned <strong>{r.reward_text}</strong> from{' '}
+                            {selectedFriend.name}!
+                          </span>
+                        ) : (
+                          <span>🎁 You earned a reward from {selectedFriend.name}!</span>
+                        )
+                      ) : r.visibility === 'visible' ? (
                         <span>
-                          🎁 You earned <strong>{friendRewardForMe.reward_text}</strong> from{' '}
-                          {selectedFriend.name}!
+                          {r.days_remaining} more day
+                          {r.days_remaining === 1 ? '' : 's'} to receive{' '}
+                          <strong>{r.reward_text}</strong> from {selectedFriend.name}
                         </span>
                       ) : (
-                        <span>🎁 You earned a reward from {selectedFriend.name}!</span>
-                      )
-                    ) : friendRewardForMe.visibility === 'visible' ? (
-                      <span>
-                        {friendRewardForMe.days_remaining} more day
-                        {friendRewardForMe.days_remaining === 1 ? '' : 's'} to receive{' '}
-                        <strong>{friendRewardForMe.reward_text}</strong> from {selectedFriend.name}
-                      </span>
-                    ) : (
-                      <span>
-                        {friendRewardForMe.days_remaining} more day
-                        {friendRewardForMe.days_remaining === 1 ? '' : 's'} to get a reward from{' '}
-                        {selectedFriend.name}
-                      </span>
-                    )}
-                  </div>
+                        <span>
+                          {r.days_remaining} more day
+                          {r.days_remaining === 1 ? '' : 's'} to get a reward from{' '}
+                          {selectedFriend.name}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </>
               )}
 
@@ -2357,7 +2388,8 @@ function Social({
                       className="friend-btn"
                       onClick={() => setSelectedFriendId(f.id)}
                     >
-                      {f.name}
+                      <span>{f.name}</span>
+                      <span className="friend-btn-streak">🔥 {f.streak}</span>
                     </button>
                   ))}
                 </div>
@@ -2634,7 +2666,7 @@ function Shell({ session }) {
     if (friendIds.length) {
       const { data: fprofs } = await supabase
         .from('profiles')
-        .select('id,name,email')
+        .select('id,name,email,clear_streak')
         .in('id', friendIds)
       const fmap = {}
       ;(fprofs || []).forEach((x) => (fmap[x.id] = x))
@@ -2642,6 +2674,7 @@ function Shell({ session }) {
         id: f.userId,
         friendshipId: f.friendshipId,
         name: fmap[f.userId]?.name || 'Friend',
+        streak: fmap[f.userId]?.clear_streak || 0,
       }))
     }
     setFriends(friendsWithNames)
