@@ -2132,6 +2132,13 @@ function Social({
               </button>
             ))}
           </div>
+          <span className="hint">
+            {rewardVisibility === 'secret'
+              ? "They won't know this reward exists at all"
+              : rewardVisibility === 'semi'
+              ? "Shows a countdown but not the reward"
+              : "Shows the countdown and what the reward is."}
+          </span>
           <div className="add-actions">
             <button
               type="button"
