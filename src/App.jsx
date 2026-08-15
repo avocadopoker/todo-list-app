@@ -2083,6 +2083,71 @@ function Social({
     ? incomingRewards.filter((r) => r.giver_id === selectedFriendId)
     : []
 
+  if (creatingReward && selectedFriend)
+    return (
+      <div className="add-screen">
+        <div className="add-head">
+          <button className="ghost" onClick={() => setCreatingReward(false)}>
+            ← Back
+          </button>
+          <h2>New reward for {selectedFriend.name}</h2>
+        </div>
+
+        <form onSubmit={createReward} className="add-form">
+          <div className="reward-form-row">
+            <span>At</span>
+            <input
+              type="number"
+              min="1"
+              className="repeat-num"
+              value={rewardStreak}
+              onChange={(e) => setRewardStreak(e.target.value)}
+            />
+            <span>day streak, give</span>
+          </div>
+          <label>
+            Reward
+            <input
+              type="text"
+              placeholder="What's the reward?"
+              value={rewardText}
+              onChange={(e) => setRewardText(e.target.value)}
+              autoFocus
+              required
+            />
+          </label>
+          <div className="prio-picker">
+            {[
+              { value: 'secret', label: 'Secret' },
+              { value: 'semi', label: 'Semi-secret' },
+              { value: 'visible', label: 'Visible' },
+            ].map((v) => (
+              <button
+                type="button"
+                key={v.value}
+                className={rewardVisibility === v.value ? 'active' : ''}
+                onClick={() => setRewardVisibility(v.value)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <div className="add-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setCreatingReward(false)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Set reward
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+
   return (
     <div className="setup">
       <div className="view-switch" style={{ marginBottom: '22px' }}>
@@ -2198,22 +2263,20 @@ function Social({
               <button className="ghost friend-back" onClick={() => setSelectedFriendId(null)}>
                 ← Back
               </button>
-              <h3 className="friend-detail-name">{selectedFriend.name}</h3>
-
-              <div className="reward-section-head">
-                <span className="section-title">Your rewards for {selectedFriend.name}</span>
-                {!creatingReward && (
-                  <button
-                    className="reward-add-btn"
-                    onClick={() => setCreatingReward(true)}
-                    aria-label="Add a reward"
-                  >
-                    +
-                  </button>
-                )}
+              <div className="friend-name-row">
+                <h3 className="friend-detail-name">{selectedFriend.name}</h3>
+                <button
+                  className="reward-add-btn"
+                  onClick={() => setCreatingReward(true)}
+                  aria-label="Add a reward"
+                >
+                  +
+                </button>
               </div>
 
-              {myRewardsForFriend.length === 0 && !creatingReward && (
+              <span className="section-title">Your rewards for {selectedFriend.name}</span>
+
+              {myRewardsForFriend.length === 0 && (
                 <p className="setup-note">No rewards set yet.</p>
               )}
 
@@ -2242,56 +2305,6 @@ function Social({
                 </div>
               ))}
 
-              {creatingReward && (
-                <form onSubmit={createReward} className="reward-form">
-                  <div className="reward-form-row">
-                    <span>At</span>
-                    <input
-                      type="number"
-                      min="1"
-                      className="repeat-num"
-                      value={rewardStreak}
-                      onChange={(e) => setRewardStreak(e.target.value)}
-                    />
-                    <span>day streak, give</span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="What's the reward?"
-                    value={rewardText}
-                    onChange={(e) => setRewardText(e.target.value)}
-                    required
-                  />
-                  <div className="prio-picker">
-                    {[
-                      { value: 'secret', label: 'Secret' },
-                      { value: 'semi', label: 'Semi-secret' },
-                      { value: 'visible', label: 'Visible' },
-                    ].map((v) => (
-                      <button
-                        type="button"
-                        key={v.value}
-                        className={rewardVisibility === v.value ? 'active' : ''}
-                        onClick={() => setRewardVisibility(v.value)}
-                      >
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="invite-actions">
-                    <button type="submit" className="btn-primary">
-                      Set reward
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      onClick={() => setCreatingReward(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
 
               {friendRewardsForMe.length > 0 && (
                 <>

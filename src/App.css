@@ -493,7 +493,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .friend-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: var(--paper);
@@ -515,17 +515,17 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   margin-bottom: 8px;
   padding: 0;
 }
+.friend-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
 .friend-detail-name {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
   font-weight: 700;
-  margin: 0 0 18px;
-}
-.reward-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  margin: 0;
 }
 .reward-add-btn {
   width: 26px;
@@ -540,6 +540,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
+  flex-shrink: 0;
 }
 .reward-add-btn:hover { background: var(--red-press); }
 .chip-remove:hover { color: var(--red); }
