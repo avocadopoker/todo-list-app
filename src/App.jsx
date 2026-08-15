@@ -1950,11 +1950,12 @@ function Social({
   const [note, setNote] = useState('')
   const [friendEmail, setFriendEmail] = useState('')
   const [friendNote, setFriendNote] = useState('')
-  const [rewardRecipient, setRewardRecipient] = useState('')
   const [rewardStreak, setRewardStreak] = useState(7)
   const [rewardText, setRewardText] = useState('')
   const [rewardVisibility, setRewardVisibility] = useState('secret')
   const [expandedGroupId, setExpandedGroupId] = useState(null)
+  const [selectedFriendId, setSelectedFriendId] = useState(null)
+  const [confirmRemoveFriend, setConfirmRemoveFriend] = useState(false)
 
   async function createGroup(e) {
     e.preventDefault()
@@ -2048,16 +2049,18 @@ function Social({
 
   async function removeFriend(friendshipId) {
     await supabase.from('friendships').delete().eq('id', friendshipId)
+    setSelectedFriendId(null)
+    setConfirmRemoveFriend(false)
     refresh()
   }
 
   async function createReward(e) {
     e.preventDefault()
     const text = rewardText.trim()
-    if (!rewardRecipient || !text || !rewardStreak) return
+    if (!selectedFriendId || !text || !rewardStreak) return
     await supabase.from('streak_rewards').insert([
       {
-        recipient_id: rewardRecipient,
+        recipient_id: selectedFriendId,
         target_streak: Math.max(1, Number(rewardStreak) || 1),
         reward_text: text,
         visibility: rewardVisibility,
@@ -2073,6 +2076,16 @@ function Social({
     await supabase.from('streak_rewards').delete().eq('id', id)
     refresh()
   }
+
+  const selectedFriend = selectedFriendId
+    ? friends.find((f) => f.id === selectedFriendId)
+    : null
+  const myRewardForFriend = selectedFriendId
+    ? givenRewards.find((r) => r.recipient_id === selectedFriendId)
+    : null
+  const friendRewardForMe = selectedFriendId
+    ? incomingRewards.find((r) => r.giver_id === selectedFriendId)
+    : null
 
   return (
     <div className="setup">
@@ -2187,181 +2200,193 @@ function Social({
         </>
       ) : (
         <>
-          <section className="setup-section">
-            <span className="section-title">Friends</span>
+          {selectedFriend ? (
+            <section className="setup-section">
+              <button className="ghost friend-back" onClick={() => setSelectedFriendId(null)}>
+                ← Back
+              </button>
+              <h3 className="friend-detail-name">{selectedFriend.name}</h3>
 
-            {friendInvites.length > 0 && (
-              <div className="friend-invites">
-                {friendInvites.map((inv) => (
-                  <div key={inv.id} className="invite-card">
-                    <span>Friend request pending</span>
-                    <div className="invite-actions">
-                      <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
-                        Accept
-                      </button>
-                      <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
-                        Decline
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {friends.length === 0 ? (
-              <p className="setup-note">No friends yet. Invite someone below.</p>
-            ) : (
-              <div className="member-chips">
-                {friends.map((f) => (
-                  <span key={f.id} className="chip">
-                    {f.name}
+              <span className="section-title">Your reward for {selectedFriend.name}</span>
+              {myRewardForFriend ? (
+                <div className="reward-card given">
+                  <div className="reward-given-top">
+                    <span>At a {myRewardForFriend.target_streak}-day streak</span>
                     <button
-                      className="chip-remove"
-                      onClick={() => removeFriend(f.friendshipId || f.id)}
-                      aria-label={`Remove ${f.name}`}
+                      className="list-remove"
+                      onClick={() => deleteReward(myRewardForFriend.id)}
+                      aria-label="Delete reward"
                     >
                       ×
                     </button>
+                  </div>
+                  <span className="reward-given-detail">
+                    {myRewardForFriend.reward_text} · {myRewardForFriend.current_streak}/
+                    {myRewardForFriend.target_streak} days
+                    {myRewardForFriend.reached ? ' · reached!' : ''}
+                    {' · '}
+                    {myRewardForFriend.visibility === 'secret'
+                      ? 'secret'
+                      : myRewardForFriend.visibility === 'semi'
+                      ? 'semi-secret'
+                      : 'visible'}
                   </span>
-                ))}
-              </div>
-            )}
+                </div>
+              ) : (
+                <form onSubmit={createReward} className="reward-form">
+                  <div className="reward-form-row">
+                    <span>At a</span>
+                    <input
+                      type="number"
+                      min="1"
+                      className="repeat-num"
+                      value={rewardStreak}
+                      onChange={(e) => setRewardStreak(e.target.value)}
+                    />
+                    <span>day streak, give</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="What's the reward?"
+                    value={rewardText}
+                    onChange={(e) => setRewardText(e.target.value)}
+                    required
+                  />
+                  <div className="prio-picker">
+                    {[
+                      { value: 'secret', label: 'Secret' },
+                      { value: 'semi', label: 'Semi-secret' },
+                      { value: 'visible', label: 'Visible' },
+                    ].map((v) => (
+                      <button
+                        type="button"
+                        key={v.value}
+                        className={rewardVisibility === v.value ? 'active' : ''}
+                        onClick={() => setRewardVisibility(v.value)}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="submit" className="btn-primary">
+                    Set reward
+                  </button>
+                </form>
+              )}
 
-            <form onSubmit={inviteFriend} className="invite-row">
-              <input
-                type="email"
-                placeholder="Invite by email"
-                value={friendEmail}
-                onChange={(e) => setFriendEmail(e.target.value)}
-              />
-              <button type="submit" className="btn-outline">
-                Invite
-              </button>
-            </form>
-            {friendNote && <p className="setup-note">{friendNote}</p>}
-          </section>
-
-          <section className="setup-section">
-            <span className="section-title">Rewards</span>
-
-            {incomingRewards.length > 0 && (
-              <div className="rewards-incoming">
-                {incomingRewards.map((r) => (
-                  <div key={r.id} className="reward-card">
-                    {r.reached ? (
-                      r.visibility === 'visible' ? (
+              {friendRewardForMe && (
+                <>
+                  <span className="section-title">{selectedFriend.name}'s reward for you</span>
+                  <div className="reward-card">
+                    {friendRewardForMe.reached ? (
+                      friendRewardForMe.visibility === 'visible' ? (
                         <span>
-                          🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                          🎁 You earned <strong>{friendRewardForMe.reward_text}</strong> from{' '}
+                          {selectedFriend.name}!
                         </span>
                       ) : (
-                        <span>
-                          🎁 You earned a reward from {r.giver_name}!
-                        </span>
+                        <span>🎁 You earned a reward from {selectedFriend.name}!</span>
                       )
-                    ) : r.visibility === 'visible' ? (
+                    ) : friendRewardForMe.visibility === 'visible' ? (
                       <span>
-                        {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
-                        receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                        {friendRewardForMe.days_remaining} more day
+                        {friendRewardForMe.days_remaining === 1 ? '' : 's'} to receive{' '}
+                        <strong>{friendRewardForMe.reward_text}</strong> from {selectedFriend.name}
                       </span>
                     ) : (
                       <span>
-                        {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
-                        reward from {r.giver_name}
+                        {friendRewardForMe.days_remaining} more day
+                        {friendRewardForMe.days_remaining === 1 ? '' : 's'} to get a reward from{' '}
+                        {selectedFriend.name}
                       </span>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                </>
+              )}
 
-            {givenRewards.length > 0 && (
-              <div className="rewards-given">
-                {givenRewards.map((r) => (
-                  <div key={r.id} className="reward-card given">
-                    <div className="reward-given-top">
-                      <span>
-                        For <strong>{r.recipient_name}</strong> at a {r.target_streak}-day
-                        streak
-                      </span>
+              <div className="list-delete-zone">
+                {confirmRemoveFriend ? (
+                  <div className="delete-confirm">
+                    <p className="setup-note">
+                      Remove {selectedFriend.name} as a friend?
+                    </p>
+                    <div className="invite-actions">
                       <button
-                        className="list-remove"
-                        onClick={() => deleteReward(r.id)}
-                        aria-label="Delete reward"
+                        className="btn-danger"
+                        onClick={() =>
+                          removeFriend(selectedFriend.friendshipId || selectedFriend.id)
+                        }
                       >
-                        ×
+                        Yes, remove
+                      </button>
+                      <button
+                        className="btn-outline"
+                        onClick={() => setConfirmRemoveFriend(false)}
+                      >
+                        Cancel
                       </button>
                     </div>
-                    <span className="reward-given-detail">
-                      {r.reward_text} · {r.current_streak}/{r.target_streak} days
-                      {r.reached ? ' · reached!' : ''}
-                      {' · '}
-                      {r.visibility === 'secret'
-                        ? 'secret'
-                        : r.visibility === 'semi'
-                        ? 'semi-secret'
-                        : 'visible'}
-                    </span>
                   </div>
-                ))}
+                ) : (
+                  <button
+                    className="list-delete-btn"
+                    onClick={() => setConfirmRemoveFriend(true)}
+                  >
+                    Remove friend
+                  </button>
+                )}
               </div>
-            )}
-
-            {friends.length === 0 ? (
-              <p className="setup-note">Add a friend above to set a reward for them.</p>
-            ) : (
-              <form onSubmit={createReward} className="reward-form">
-                <select
-                  value={rewardRecipient}
-                  onChange={(e) => setRewardRecipient(e.target.value)}
-                  required
-                >
-                  <option value="">For...</option>
-                  {friends.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
+            </section>
+          ) : (
+            <section className="setup-section">
+              {friendInvites.length > 0 && (
+                <div className="friend-invites">
+                  {friendInvites.map((inv) => (
+                    <div key={inv.id} className="invite-card">
+                      <span>Friend request pending</span>
+                      <div className="invite-actions">
+                        <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
+                          Accept
+                        </button>
+                        <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
+                          Decline
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </select>
-                <div className="reward-form-row">
-                  <span>At a</span>
-                  <input
-                    type="number"
-                    min="1"
-                    className="repeat-num"
-                    value={rewardStreak}
-                    onChange={(e) => setRewardStreak(e.target.value)}
-                  />
-                  <span>day streak, give</span>
                 </div>
-                <input
-                  type="text"
-                  placeholder="What's the reward?"
-                  value={rewardText}
-                  onChange={(e) => setRewardText(e.target.value)}
-                  required
-                />
-                <div className="prio-picker">
-                  {[
-                    { value: 'secret', label: 'Secret' },
-                    { value: 'semi', label: 'Semi-secret' },
-                    { value: 'visible', label: 'Visible' },
-                  ].map((v) => (
+              )}
+
+              {friends.length === 0 ? (
+                <p className="setup-note">No friends yet. Invite someone below.</p>
+              ) : (
+                <div className="friend-list">
+                  {friends.map((f) => (
                     <button
-                      type="button"
-                      key={v.value}
-                      className={rewardVisibility === v.value ? 'active' : ''}
-                      onClick={() => setRewardVisibility(v.value)}
+                      key={f.id}
+                      className="friend-btn"
+                      onClick={() => setSelectedFriendId(f.id)}
                     >
-                      {v.label}
+                      {f.name}
                     </button>
                   ))}
                 </div>
-                <button type="submit" className="btn-primary">
-                  Set reward
+              )}
+
+              <form onSubmit={inviteFriend} className="invite-row">
+                <input
+                  type="email"
+                  placeholder="Invite by email"
+                  value={friendEmail}
+                  onChange={(e) => setFriendEmail(e.target.value)}
+                />
+                <button type="submit" className="btn-outline">
+                  Invite
                 </button>
               </form>
-            )}
-          </section>
+              {friendNote && <p className="setup-note">{friendNote}</p>}
+            </section>
+          )}
         </>
       )}
     </div>
