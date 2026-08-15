@@ -1798,9 +1798,6 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 
   return (
     <div className="tdl">
-      <p className="section-title" style={{ marginBottom: '16px' }}>
-        All habits
-      </p>
       {taskLoading ? (
         <p className="empty">Loading...</p>
       ) : recurring.length === 0 ? (
@@ -1872,8 +1869,6 @@ function Setup({ profile, myId, refresh }) {
 
   return (
     <div className="setup">
-      <h2>Setup</h2>
-
       <section className="setup-section">
         <span className="section-title">Your name</span>
         <div className="name-row">
@@ -1894,7 +1889,6 @@ function Setup({ profile, myId, refresh }) {
       </button>
 
       <section className="setup-section danger">
-        <span className="section-title">Account</span>
         {!confirmDelete ? (
           <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
             Delete account
@@ -2089,8 +2083,6 @@ function Social({
 
   return (
     <div className="setup">
-      <h2>Social</h2>
-
       <div className="view-switch" style={{ marginBottom: '22px' }}>
         <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>
           Groups
@@ -2124,7 +2116,6 @@ function Social({
           )}
 
           <section className="setup-section">
-            <span className="section-title">Groups</span>
             {groups.length === 0 && (
               <p className="setup-note">No groups yet. Create one below.</p>
             )}
@@ -2207,11 +2198,11 @@ function Social({
               </button>
               <h3 className="friend-detail-name">{selectedFriend.name}</h3>
 
-              <span className="section-title">Your reward for {selectedFriend.name}</span>
+              <span className="section-title">Your rewards for {selectedFriend.name}</span>
               {myRewardForFriend ? (
                 <div className="reward-card given">
                   <div className="reward-given-top">
-                    <span>At a {myRewardForFriend.target_streak}-day streak</span>
+                    <span>At {myRewardForFriend.target_streak}-day streak</span>
                     <button
                       className="list-remove"
                       onClick={() => deleteReward(myRewardForFriend.id)}
@@ -2221,21 +2212,20 @@ function Social({
                     </button>
                   </div>
                   <span className="reward-given-detail">
-                    {myRewardForFriend.reward_text} · {myRewardForFriend.current_streak}/
-                    {myRewardForFriend.target_streak} days
-                    {myRewardForFriend.reached ? ' · reached!' : ''}
-                    {' · '}
+                    {myRewardForFriend.current_streak}/{myRewardForFriend.target_streak} days
+                    {myRewardForFriend.reached ? ' reached!' : ''}{' '}
                     {myRewardForFriend.visibility === 'secret'
                       ? 'secret'
                       : myRewardForFriend.visibility === 'semi'
                       ? 'semi-secret'
-                      : 'visible'}
+                      : 'visible'}{' '}
+                    {myRewardForFriend.reward_text}
                   </span>
                 </div>
               ) : (
                 <form onSubmit={createReward} className="reward-form">
                   <div className="reward-form-row">
-                    <span>At a</span>
+                    <span>At</span>
                     <input
                       type="number"
                       min="1"
