@@ -1076,7 +1076,7 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
 }
 
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople, rewardLines }) {
+function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople, rewardLines, incomingRewards }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
@@ -1290,6 +1290,34 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
             )}
           </div>
         )
+      )}
+
+      {!readOnly && incomingRewards && incomingRewards.length > 0 && (
+        <div className="incoming-rewards-strip">
+          {incomingRewards.map((r) => (
+            <div key={r.id} className="incoming-reward-line">
+              {r.reached ? (
+                r.visibility === 'visible' ? (
+                  <span>
+                    🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                  </span>
+                ) : (
+                  <span>🎁 You earned a reward from {r.giver_name}!</span>
+                )
+              ) : r.visibility === 'visible' ? (
+                <span>
+                  {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to receive{' '}
+                  <strong>{r.reward_text}</strong> from {r.giver_name}
+                </span>
+              ) : (
+                <span>
+                  {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
+                  reward from {r.giver_name}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="view-switch">
@@ -2825,6 +2853,7 @@ function Shell({ session }) {
             profile={profile}
             viewablePeople={viewablePeople}
             rewardLines={rewardLines}
+            incomingRewards={incomingRewards}
           />
         )}
         {screen === 'ideas' && (

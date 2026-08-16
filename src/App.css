@@ -603,6 +603,22 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   background: var(--paper);
   border-color: var(--line);
 }
+
+/* ---------- incoming reward countdown on the TDL streak banner ---------- */
+.incoming-rewards-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.incoming-reward-line {
+  background: var(--red-faint);
+  border: 1px solid var(--red-tint);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
 .reward-given-top {
   display: flex;
   align-items: center;
