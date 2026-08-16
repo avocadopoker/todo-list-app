@@ -604,21 +604,6 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   border-color: var(--line);
 }
 
-/* ---------- incoming reward countdown on the TDL streak banner ---------- */
-.incoming-rewards-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-.incoming-reward-line {
-  background: var(--red-faint);
-  border: 1px solid var(--red-tint);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.82rem;
-  color: var(--ink);
-}
 .reward-given-top {
   display: flex;
   align-items: center;
@@ -811,6 +796,23 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   text-align: center;
   padding: 0 12px;
   animation: fadeIn 0.4s ease 0.3s both;
+}
+.burst-rewards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  max-width: 300px;
+  animation: fadeIn 0.4s ease 0.4s both;
+}
+.burst-reward-line {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  color: #fff;
+  text-align: center;
 }
 .streak-continue {
   margin-top: 28px;

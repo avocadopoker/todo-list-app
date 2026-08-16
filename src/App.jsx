@@ -704,7 +704,7 @@ async function pickAndAdvanceReward(profile, rewardLines, myId) {
   return lineObj ? lineObj.text : null
 }
 
-function StreakBurst({ n, line, onEnd }) {
+function StreakBurst({ n, line, rewards, onEnd }) {
   return (
     <div className="streak-overlay">
       <div className="streak-pop">
@@ -716,6 +716,33 @@ function StreakBurst({ n, line, onEnd }) {
         <div className="streak-num">🔥 {n}</div>
         <div className="streak-caption">day streak!</div>
         {line && <div className="streak-line">{line}</div>}
+        {rewards && rewards.length > 0 && (
+          <div className="burst-rewards">
+            {rewards.map((r) => (
+              <div key={r.id} className="burst-reward-line">
+                {r.reached ? (
+                  r.visibility === 'visible' ? (
+                    <span>
+                      🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
+                    </span>
+                  ) : (
+                    <span>🎁 You earned a reward from {r.giver_name}!</span>
+                  )
+                ) : r.visibility === 'visible' ? (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
+                    receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                  </span>
+                ) : (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get
+                    a reward from {r.giver_name}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <button className="streak-continue" onClick={onEnd}>
           Nice!
         </button>
@@ -1292,34 +1319,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         )
       )}
 
-      {!readOnly && incomingRewards && incomingRewards.length > 0 && (
-        <div className="incoming-rewards-strip">
-          {incomingRewards.map((r) => (
-            <div key={r.id} className="incoming-reward-line">
-              {r.reached ? (
-                r.visibility === 'visible' ? (
-                  <span>
-                    🎁 You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
-                  </span>
-                ) : (
-                  <span>🎁 You earned a reward from {r.giver_name}!</span>
-                )
-              ) : r.visibility === 'visible' ? (
-                <span>
-                  {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to receive{' '}
-                  <strong>{r.reward_text}</strong> from {r.giver_name}
-                </span>
-              ) : (
-                <span>
-                  {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get a
-                  reward from {r.giver_name}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="view-switch">
         {VIEWS.map((v) => (
           <button
@@ -1383,6 +1382,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         <StreakBurst
           n={burst}
           line={burstLine}
+          rewards={!readOnly ? incomingRewards : null}
           onEnd={() => {
             setBurst(null)
             setBurstLine(null)
