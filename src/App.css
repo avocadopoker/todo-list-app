@@ -682,8 +682,9 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   margin-bottom: 14px;
 }
 .token-tag {
-  color: #b8860b;
+  color: #6b7280;
   font-weight: 700;
+  margin-left: 4px;
 }
 
 /* Done bar (was delete bar) keeps the same shell but the action reads green */

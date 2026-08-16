@@ -1259,7 +1259,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
                   ? `🔥 ${profile.clear_streak} day streak`
                   : '0 Day streak 😭'}
                 {profile.streak_tokens > 0 && (
-                  <span className="token-tag"> 🪙 {profile.streak_tokens}</span>
+                  <span className="token-tag"> · 🛡️ {profile.streak_tokens}</span>
                 )}
               </span>
             )
@@ -1286,7 +1286,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
               ? `🔥 ${profile.clear_streak} day streak`
               : '0 Day streak 😭'}
             {profile.streak_tokens > 0 && (
-              <span className="token-tag"> 🪙 {profile.streak_tokens}</span>
+              <span className="token-tag"> · 🛡️ {profile.streak_tokens}</span>
             )}
           </div>
         )
