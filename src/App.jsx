@@ -2779,7 +2779,7 @@ function Shell({ session }) {
               onClick={() => setSetupMenuOpen((o) => !o)}
               aria-label="Setup menu"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="50" height="50" aria-hidden="true">
                 <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <circle cx="9" cy="6" r="2.2" fill="currentColor" />
                 <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
