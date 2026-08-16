@@ -2779,13 +2779,21 @@ function Shell({ session }) {
               onClick={() => setSetupMenuOpen((o) => !o)}
               aria-label="Setup menu"
             >
-              <svg viewBox="0 0 24 24" width="50" height="50" aria-hidden="true">
-                <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="9" cy="6" r="2.2" fill="currentColor" />
-                <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="16" cy="12" r="2.2" fill="currentColor" />
-                <line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="11" cy="18" r="2.2" fill="currentColor" />
+              <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true">
+                <circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+                <circle cx="12" cy="12" r="2.3" fill="none" stroke="currentColor" strokeWidth="2" />
+                {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+                  <rect
+                    key={deg}
+                    x="10.7"
+                    y="0.8"
+                    width="2.6"
+                    height="3.6"
+                    rx="1"
+                    fill="currentColor"
+                    transform={`rotate(${deg} 12 12)`}
+                  />
+                ))}
               </svg>
             </button>
             {setupMenuOpen && (
