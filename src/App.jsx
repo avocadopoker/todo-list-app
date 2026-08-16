@@ -2436,52 +2436,6 @@ function Social({
 }
 
 /* ---------- Setup screen wrapper: Settings + Habits subtabs ---------- */
-function SetupScreen({
-  tasks,
-  taskLoading,
-  people,
-  profile,
-  groups,
-  myId,
-  nameFor,
-  refresh,
-}) {
-  const [tab, setTab] = useState('settings')
-
-  return (
-    <div className="tdl">
-      <div className="view-switch" style={{ marginBottom: '22px' }}>
-        <button
-          className={tab === 'settings' ? 'active' : ''}
-          onClick={() => setTab('settings')}
-        >
-          Settings
-        </button>
-        <button
-          className={tab === 'habits' ? 'active' : ''}
-          onClick={() => setTab('habits')}
-        >
-          Habits
-        </button>
-      </div>
-
-      {tab === 'settings' ? (
-        <Setup profile={profile} myId={myId} refresh={refresh} />
-      ) : (
-        <Habits
-          tasks={tasks}
-          taskLoading={taskLoading}
-          refresh={refresh}
-          myId={myId}
-          nameFor={nameFor}
-          people={people}
-          groups={groups}
-        />
-      )}
-    </div>
-  )
-}
-
 /* ---------- local cache so the app paints instantly on open ---------- */
 const CACHE_KEY = 'tdl_cache_v1'
 function loadCache(uid) {
@@ -2509,6 +2463,8 @@ function Shell({ session }) {
   const cached = useRef(loadCache(myId)).current
 
   const [screen, setScreen] = useState('tdl')
+  const [setupMenuOpen, setSetupMenuOpen] = useState(false)
+  const setupMenuRef = useRef(null)
   const [tasks, setTasks] = useState(cached?.tasks || [])
   const [lists, setLists] = useState(cached?.lists || [])
   const [listItems, setListItems] = useState(cached?.listItems || [])
@@ -2762,6 +2718,18 @@ function Shell({ session }) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refresh])
 
+  // close the Setup dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!setupMenuOpen) return
+    const onClick = (e) => {
+      if (setupMenuRef.current && !setupMenuRef.current.contains(e.target)) {
+        setSetupMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [setupMenuOpen])
+
   const peopleMap = {}
   peopleMap[myId] = { id: myId, name: profile?.name || 'Me' }
   members.forEach((m) => {
@@ -2805,12 +2773,34 @@ function Shell({ session }) {
           >
             Social
           </button>
-          <button
-            className={screen === 'setup' ? 'active' : ''}
-            onClick={() => setScreen('setup')}
-          >
-            Setup
-          </button>
+          <div className="nav-dropdown" ref={setupMenuRef}>
+            <button
+              className={screen === 'setup' || screen === 'habits' ? 'active' : ''}
+              onClick={() => setSetupMenuOpen((o) => !o)}
+            >
+              Setup ▾
+            </button>
+            {setupMenuOpen && (
+              <div className="nav-dropdown-menu">
+                <button
+                  onClick={() => {
+                    setScreen('setup')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => {
+                    setScreen('habits')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Habits
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
       </header>
 
@@ -2852,15 +2842,17 @@ function Shell({ session }) {
           />
         )}
         {screen === 'setup' && (
-          <SetupScreen
+          <Setup profile={profile} myId={myId} refresh={refresh} />
+        )}
+        {screen === 'habits' && (
+          <Habits
             tasks={tasks}
             taskLoading={loading}
-            people={people}
-            profile={profile}
-            groups={groups}
+            refresh={refresh}
             myId={myId}
             nameFor={nameFor}
-            refresh={refresh}
+            people={people}
+            groups={groups}
           />
         )}
       </main>

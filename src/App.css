@@ -157,6 +157,33 @@ input:focus {
 }
 .screen-tabs button.active { background: var(--ink); color: #fff; }
 
+.nav-dropdown { position: relative; }
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(26, 22, 24, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  z-index: 20;
+}
+.nav-dropdown-menu button {
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 7px;
+}
+.nav-dropdown-menu button:hover { background: var(--red-tint); color: var(--red-press); }
+
 main {
   max-width: 620px;
   margin: 0 auto;
