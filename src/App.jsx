@@ -1938,7 +1938,7 @@ function Social({
   givenRewards,
   incomingRewards,
 }) {
-  const [tab, setTab] = useState('groups')
+  const [tab, setTab] = useState('friends')
   const [newGroup, setNewGroup] = useState('')
   const [inviteEmail, setInviteEmail] = useState({})
   const [note, setNote] = useState('')
@@ -2158,11 +2158,11 @@ function Social({
   return (
     <div className="setup">
       <div className="view-switch" style={{ marginBottom: '22px' }}>
-        <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>
-          Groups
-        </button>
         <button className={tab === 'friends' ? 'active' : ''} onClick={() => setTab('friends')}>
           Friends
+        </button>
+        <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>
+          Groups
         </button>
       </div>
 
@@ -2442,15 +2442,9 @@ function SetupScreen({
   people,
   profile,
   groups,
-  members,
-  invites,
   myId,
   nameFor,
   refresh,
-  friends,
-  friendInvites,
-  givenRewards,
-  incomingRewards,
 }) {
   const [tab, setTab] = useState('settings')
 
@@ -2469,17 +2463,11 @@ function SetupScreen({
         >
           Habits
         </button>
-        <button
-          className={tab === 'social' ? 'active' : ''}
-          onClick={() => setTab('social')}
-        >
-          Social
-        </button>
       </div>
 
       {tab === 'settings' ? (
         <Setup profile={profile} myId={myId} refresh={refresh} />
-      ) : tab === 'habits' ? (
+      ) : (
         <Habits
           tasks={tasks}
           taskLoading={taskLoading}
@@ -2488,18 +2476,6 @@ function SetupScreen({
           nameFor={nameFor}
           people={people}
           groups={groups}
-        />
-      ) : (
-        <Social
-          groups={groups}
-          members={members}
-          invites={invites}
-          myId={myId}
-          refresh={refresh}
-          friends={friends}
-          friendInvites={friendInvites}
-          givenRewards={givenRewards}
-          incomingRewards={incomingRewards}
         />
       )}
     </div>
@@ -2824,6 +2800,12 @@ function Shell({ session }) {
             Lists
           </button>
           <button
+            className={screen === 'social' ? 'active' : ''}
+            onClick={() => setScreen('social')}
+          >
+            Social
+          </button>
+          <button
             className={screen === 'setup' ? 'active' : ''}
             onClick={() => setScreen('setup')}
           >
@@ -2856,6 +2838,19 @@ function Shell({ session }) {
             viewablePeople={viewablePeople}
           />
         )}
+        {screen === 'social' && (
+          <Social
+            groups={groups}
+            members={members}
+            invites={invites}
+            myId={myId}
+            refresh={refresh}
+            friends={friends}
+            friendInvites={friendInvites}
+            givenRewards={givenRewards}
+            incomingRewards={incomingRewards}
+          />
+        )}
         {screen === 'setup' && (
           <SetupScreen
             tasks={tasks}
@@ -2863,15 +2858,9 @@ function Shell({ session }) {
             people={people}
             profile={profile}
             groups={groups}
-            members={members}
-            invites={invites}
             myId={myId}
             nameFor={nameFor}
             refresh={refresh}
-            friends={friends}
-            friendInvites={friendInvites}
-            givenRewards={givenRewards}
-            incomingRewards={incomingRewards}
           />
         )}
       </main>
