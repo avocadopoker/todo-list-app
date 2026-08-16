@@ -158,6 +158,16 @@ input:focus {
 .screen-tabs button.active { background: var(--ink); color: #fff; }
 
 .nav-dropdown { position: relative; }
+.nav-gear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.nav-gear-btn.active { background: var(--ink); color: #fff; }
 .nav-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
