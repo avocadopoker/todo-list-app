@@ -722,7 +722,28 @@ function StreakBurst({ n, line, rewards, onEnd }) {
           ))}
         </div>
         <div className="streak-hero">
-          <div className="streak-hero-fire" aria-hidden="true">🔥</div>
+          <svg className="streak-hero-fire" viewBox="0 0 200 260" aria-hidden="true">
+            <defs>
+              <linearGradient id="flameOuterGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffb03d" />
+                <stop offset="45%" stopColor="#ff5a2e" />
+                <stop offset="100%" stopColor="#8a0f06" />
+              </linearGradient>
+              <radialGradient id="flameInnerGrad" cx="50%" cy="72%" r="55%">
+                <stop offset="0%" stopColor="#fff6c9" />
+                <stop offset="55%" stopColor="#ffc447" />
+                <stop offset="100%" stopColor="#ff7a1a" />
+              </radialGradient>
+            </defs>
+            <path
+              d="M100,18 C60,68 36,120 40,166 C42,198 66,226 100,246 C134,226 158,198 160,166 C164,120 140,68 100,18 Z"
+              fill="url(#flameOuterGrad)"
+            />
+            <path
+              d="M100,96 C78,128 66,154 68,180 C70,199 84,214 100,228 C116,214 130,199 132,180 C134,154 122,128 100,96 Z"
+              fill="url(#flameInnerGrad)"
+            />
+          </svg>
           <div className="streak-num">{n}</div>
         </div>
         {line && <div className="streak-line-box"><div className="streak-line">{line}</div></div>}
