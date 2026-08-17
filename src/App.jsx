@@ -724,9 +724,8 @@ function StreakBurst({ n, line, rewards, onEnd }) {
         <div className="streak-hero">
           <div className="streak-hero-fire" aria-hidden="true">🔥</div>
           <div className="streak-num">{n}</div>
-          <div className="streak-caption">day streak!</div>
         </div>
-        {line && <div className="streak-line">{line}</div>}
+        {line && <div className="streak-line-box"><div className="streak-line">{line}</div></div>}
         {freshRewards.length > 0 && (
           <div className="burst-rewards">
             {freshRewards.map((r) => (

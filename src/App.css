@@ -773,29 +773,28 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 }
 .streak-hero {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 56px 0 4px;
+  display: grid;
+  place-items: center;
+  width: 260px;
+  height: 260px;
+  margin: 32px auto 4px;
 }
 .streak-hero-fire {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  grid-area: 1 / 1;
   font-size: 15rem;
   line-height: 1;
   opacity: 0.35;
   filter: saturate(1.3);
-  z-index: 0;
   pointer-events: none;
+  transform: translateY(4%);
   animation: fireGlow 2.6s ease-in-out infinite;
 }
 @keyframes fireGlow {
-  0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 0.45; transform: translate(-50%, -50%) scale(1.06); }
+  0%, 100% { opacity: 0.28; transform: translateY(4%) scale(1); }
+  50% { opacity: 0.45; transform: translateY(4%) scale(1.06); }
 }
 .streak-num {
+  grid-area: 1 / 1;
   position: relative;
   z-index: 1;
   font-family: 'Space Grotesk', sans-serif;
@@ -804,26 +803,22 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   color: #fff;
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
-.streak-caption {
-  position: relative;
-  z-index: 1;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #ffd9a8;
-  text-transform: lowercase;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+.streak-line-box {
+  margin-top: 18px;
+  max-width: 320px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  padding: 14px 18px;
+  animation: fadeIn 0.4s ease 0.3s both;
 }
 .streak-line {
-  margin-top: 18px;
-  max-width: 300px;
   font-family: 'Inter', sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.5;
   color: #fff;
   text-align: center;
-  animation: fadeIn 0.4s ease 0.3s both;
 }
 .burst-rewards {
   display: flex;
