@@ -1872,26 +1872,42 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 }
 
 /* ---------- setup screen (just name / sign out / delete) ---------- */
-function Setup({ profile, myId, refresh, rewardLines, incomingRewards }) {
+function Setup({ profile, myId, refresh, rewardLines, incomingRewards, friends, givenRewards }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
   const [savingName, setSavingName] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState('')
   const [preview, setPreview] = useState(null)
+  const [previewFriendId, setPreviewFriendId] = useState('')
 
   // Preview the clear-the-day celebration on demand, using real current
   // data. Picks a line at random WITHOUT advancing the saved shuffle
-  // cursor, so previewing never burns through the real rotation.
+  // cursor, so previewing never burns through the real rotation. Can
+  // preview as myself, or as any friend (using their real streak and any
+  // rewards I've personally set for them).
   function openPreview() {
     const pool = rewardLines || []
     const line = pool.length
       ? pool[Math.floor(Math.random() * pool.length)].text
       : null
-    setPreview({
-      n: (profile?.clear_streak || 0) + 1,
-      line,
-    })
+
+    if (!previewFriendId) {
+      setPreview({ n: (profile?.clear_streak || 0) + 1, line, rewards: incomingRewards })
+      return
+    }
+
+    const friend = (friends || []).find((f) => f.id === previewFriendId)
+    const rewards = (givenRewards || [])
+      .filter((r) => r.recipient_id === previewFriendId)
+      .map((r) => ({
+        id: r.id,
+        target_streak: r.target_streak,
+        reward_text: r.reward_text,
+        visibility: r.visibility,
+        giver_name: profile?.name || 'a friend',
+      }))
+    setPreview({ n: (friend?.streak || 0) + 1, line, rewards })
   }
 
   async function saveName() {
@@ -1938,6 +1954,21 @@ function Setup({ profile, myId, refresh, rewardLines, incomingRewards }) {
       {profile?.email === 'larsnickolai@gmail.com' && (
         <section className="setup-section">
           <span className="section-title">Preview</span>
+          {friends && friends.length > 0 && (
+            <select
+              className="viewer-select"
+              value={previewFriendId}
+              onChange={(e) => setPreviewFriendId(e.target.value)}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <option value="">Preview as me</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  Preview as {f.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn-outline" onClick={openPreview}>
             Show celebration screen
           </button>
@@ -1991,7 +2022,7 @@ function Setup({ profile, myId, refresh, rewardLines, incomingRewards }) {
         <StreakBurst
           n={preview.n}
           line={preview.line}
-          rewards={incomingRewards}
+          rewards={preview.rewards}
           onEnd={() => setPreview(null)}
         />
       )}
@@ -2930,6 +2961,8 @@ function Shell({ session }) {
             refresh={refresh}
             rewardLines={rewardLines}
             incomingRewards={incomingRewards}
+            friends={friends}
+            givenRewards={givenRewards}
           />
         )}
         {screen === 'habits' && (
