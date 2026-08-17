@@ -1872,12 +1872,27 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 }
 
 /* ---------- setup screen (just name / sign out / delete) ---------- */
-function Setup({ profile, myId, refresh }) {
+function Setup({ profile, myId, refresh, rewardLines, incomingRewards }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
   const [savingName, setSavingName] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState('')
+  const [preview, setPreview] = useState(null)
+
+  // Preview the clear-the-day celebration on demand, using real current
+  // data. Picks a line at random WITHOUT advancing the saved shuffle
+  // cursor, so previewing never burns through the real rotation.
+  function openPreview() {
+    const pool = rewardLines || []
+    const line = pool.length
+      ? pool[Math.floor(Math.random() * pool.length)].text
+      : null
+    setPreview({
+      n: (profile?.clear_streak || 0) + 1,
+      line,
+    })
+  }
 
   async function saveName() {
     setSavingName(true)
@@ -1920,6 +1935,19 @@ function Setup({ profile, myId, refresh }) {
         </div>
       </section>
 
+      {profile?.email === 'larsnickolai@gmail.com' && (
+        <section className="setup-section">
+          <span className="section-title">Preview</span>
+          <button className="btn-outline" onClick={openPreview}>
+            Show celebration screen
+          </button>
+          <span className="hint">
+            Shows what you'll see when you clear your day - safe to open any time,
+            it doesn't change your streak or use up a message.
+          </span>
+        </section>
+      )}
+
       <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
         Sign out
       </button>
@@ -1958,6 +1986,15 @@ function Setup({ profile, myId, refresh }) {
           </div>
         )}
       </section>
+
+      {preview && (
+        <StreakBurst
+          n={preview.n}
+          line={preview.line}
+          rewards={incomingRewards}
+          onEnd={() => setPreview(null)}
+        />
+      )}
     </div>
   )
 }
@@ -2887,7 +2924,13 @@ function Shell({ session }) {
           />
         )}
         {screen === 'setup' && (
-          <Setup profile={profile} myId={myId} refresh={refresh} />
+          <Setup
+            profile={profile}
+            myId={myId}
+            refresh={refresh}
+            rewardLines={rewardLines}
+            incomingRewards={incomingRewards}
+          />
         )}
         {screen === 'habits' && (
           <Habits
