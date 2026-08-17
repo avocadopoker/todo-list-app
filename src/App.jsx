@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
+import flameBumpImg from './assets/flame-bump.jpg'
 import './App.css'
 
 /* ---------- date helpers ---------- */
@@ -722,69 +723,7 @@ function StreakBurst({ n, line, rewards, onEnd }) {
           ))}
         </div>
         <div className="streak-hero">
-          <svg className="streak-hero-fire" viewBox="0 0 340 220" aria-hidden="true">
-            <defs>
-              <linearGradient id="flameOuterGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffb03d" />
-                <stop offset="45%" stopColor="#ff5a2e" />
-                <stop offset="100%" stopColor="#8a0f06" />
-              </linearGradient>
-              <radialGradient id="flameInnerGrad" cx="50%" cy="55%" r="60%">
-                <stop offset="0%" stopColor="#fff6c9" />
-                <stop offset="55%" stopColor="#ffc447" />
-                <stop offset="100%" stopColor="#ff7a1a" />
-              </radialGradient>
-              <radialGradient id="impactGrad" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#fffef0" />
-                <stop offset="60%" stopColor="#ffd97a" />
-                <stop offset="100%" stopColor="#ff9d3d" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-
-            <g className="flame-side flame-side-left">
-              <g>
-                <path
-                  d="M15,150 C0,150 -2,58 15,42 C35,18 72,8 108,14 C142,20 162,46 160,88 C158,126 140,152 102,158 C66,164 30,160 15,150 Z"
-                  fill="url(#flameOuterGrad)"
-                />
-                <path
-                  d="M55,140 C40,128 34,102 42,78 C50,56 70,42 92,44 C112,46 126,64 124,88 C122,112 106,132 80,140 C71,143 62,143 55,140 Z"
-                  fill="url(#flameInnerGrad)"
-                />
-                <path d="M70,16 C62,-4 66,-20 78,-30 C82,-16 84,-2 76,14 Z" fill="url(#flameOuterGrad)" />
-                <path d="M108,15 C106,-2 114,-16 128,-22 C128,-8 126,6 116,18 Z" fill="url(#flameOuterGrad)" />
-              </g>
-            </g>
-
-            <g className="flame-side flame-side-right" transform="translate(340,0) scale(-1,1)">
-              <g>
-                <path
-                  d="M15,150 C0,150 -2,58 15,42 C35,18 72,8 108,14 C142,20 162,46 160,88 C158,126 140,152 102,158 C66,164 30,160 15,150 Z"
-                  fill="url(#flameOuterGrad)"
-                />
-                <path
-                  d="M55,140 C40,128 34,102 42,78 C50,56 70,42 92,44 C112,46 126,64 124,88 C122,112 106,132 80,140 C71,143 62,143 55,140 Z"
-                  fill="url(#flameInnerGrad)"
-                />
-                <path d="M70,16 C62,-4 66,-20 78,-30 C82,-16 84,-2 76,14 Z" fill="url(#flameOuterGrad)" />
-                <path d="M108,15 C106,-2 114,-16 128,-22 C128,-8 126,6 116,18 Z" fill="url(#flameOuterGrad)" />
-              </g>
-            </g>
-
-            <g className="flame-impact" transform="translate(170,95)">
-              <circle r="46" fill="url(#impactGrad)" />
-              <g stroke="#ffe9a8" strokeWidth="3" strokeLinecap="round">
-                <line x1="0" y1="-58" x2="0" y2="-38" />
-                <line x1="0" y1="38" x2="0" y2="58" />
-                <line x1="-58" y1="0" x2="-38" y2="0" />
-                <line x1="58" y1="0" x2="38" y2="0" />
-                <line x1="-41" y1="-41" x2="-27" y2="-27" />
-                <line x1="41" y1="-41" x2="27" y2="-27" />
-                <line x1="-41" y1="41" x2="-27" y2="27" />
-                <line x1="41" y1="41" x2="27" y2="27" />
-              </g>
-            </g>
-          </svg>
+          <img className="streak-hero-fire" src={flameBumpImg} alt="" />
           <div className="streak-num">{n}</div>
         </div>
         {line && <div className="streak-line-box"><div className="streak-line">{line}</div></div>}
