@@ -705,6 +705,14 @@ async function pickAndAdvanceReward(profile, rewardLines, myId) {
 }
 
 function StreakBurst({ n, line, rewards, onEnd }) {
+  // `rewards` was fetched before today's clear, so its days_remaining /
+  // reached values are one day stale - recompute them against the new
+  // streak (n) so the popup shows today's real numbers.
+  const freshRewards = (rewards || []).map((r) => ({
+    ...r,
+    days_remaining: Math.max(r.target_streak - n, 0),
+    reached: n >= r.target_streak,
+  }))
   return (
     <div className="streak-overlay">
       <div className="streak-pop">
@@ -716,9 +724,9 @@ function StreakBurst({ n, line, rewards, onEnd }) {
         <div className="streak-num">🔥 {n}</div>
         <div className="streak-caption">day streak!</div>
         {line && <div className="streak-line">{line}</div>}
-        {rewards && rewards.length > 0 && (
+        {freshRewards.length > 0 && (
           <div className="burst-rewards">
-            {rewards.map((r) => (
+            {freshRewards.map((r) => (
               <div key={r.id} className="burst-reward-line">
                 {r.reached ? (
                   r.visibility === 'visible' ? (
