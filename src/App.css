@@ -39,23 +39,27 @@ button { font-family: inherit; cursor: pointer; }
 .brand.small { font-size: 1.25rem; }
 .brand-mark { color: var(--red); }
 
-/* ---------- firetail lockup: squirrel mark + wordmark ---------- */
+/* ---------- firetail lockup: flame-tail squirrel mark + wordmark ---------- */
 .brand-lockup {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   line-height: 1;
 }
-.brand-lockup.small { gap: 7px; }
+.brand-lockup.small { gap: 6px; }
+.brand-lockup.header-order { flex-direction: row; }
 .ft-mark {
-  width: 42px;
-  height: 42px;
+  width: 52px;
+  height: auto;
   flex-shrink: 0;
+  object-fit: contain;
   filter: drop-shadow(0 2px 6px rgba(229, 50, 42, 0.28));
 }
 .brand-lockup.small .ft-mark {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+}
+.ft-mark-flipped {
+  transform: scaleX(-1);
 }
 .brand-words {
   display: inline-flex;
