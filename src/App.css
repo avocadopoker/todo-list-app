@@ -67,6 +67,9 @@ button { font-family: inherit; cursor: pointer; }
   align-items: flex-start;
   gap: 2px;
 }
+.brand-title {
+  white-space: nowrap;
+}
 .brand-fire {
   background: var(--flame-grad);
   -webkit-background-clip: text;

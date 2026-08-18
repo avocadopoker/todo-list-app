@@ -28,7 +28,9 @@ function BrandLockup({ small = false, showSub = false, header = false }) {
 
   const wordmark = (
     <span className="brand-words">
-      <span className="brand-fire">Fire</span>tail
+      <span className="brand-title">
+        <span className="brand-fire">Fire</span>Tail
+      </span>
       {showSub && <span className="brand-sub">Habits</span>}
     </span>
   )
