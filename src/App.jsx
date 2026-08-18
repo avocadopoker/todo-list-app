@@ -715,7 +715,8 @@ function StreakBurst({ n, line, rewards, onEnd }) {
     reached: n >= r.target_streak,
   }))
   return (
-    <div className="streak-overlay" style={{ backgroundImage: `url(${flameBumpImg})` }}>
+    <div className="streak-overlay">
+      <img className="streak-bg-flame" src={flameBumpImg} alt="" />
       <div className="streak-pop">
         <div className="burst" aria-hidden="true">
           {Array.from({ length: 12 }).map((_, i) => (

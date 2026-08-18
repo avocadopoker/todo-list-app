@@ -754,16 +754,27 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   display: flex;
   align-items: center;
   justify-content: center;
-  background-size: cover;
-  background-position: center 42%;
-  background-repeat: no-repeat;
+  background: #0a0402;
+  overflow: hidden;
   animation: fadeIn 0.25s ease both;
+}
+.streak-bg-flame {
+  position: absolute;
+  left: 0;
+  top: 32%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: auto;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.95;
 }
 .streak-overlay::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 38%, rgba(20, 8, 6, 0.2) 0%, rgba(15, 6, 5, 0.68) 55%, rgba(8, 3, 2, 0.92) 100%);
+  background: radial-gradient(circle at 50% 32%, rgba(20, 8, 6, 0.15) 0%, rgba(15, 6, 5, 0.62) 55%, rgba(6, 2, 1, 0.94) 100%);
+  z-index: 0;
   pointer-events: none;
 }
 @keyframes fadeIn { from { opacity: 0; } }
@@ -802,16 +813,19 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .streak-line-box {
   margin-top: 14px;
   max-width: 320px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(10, 4, 2, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 180, 90, 0.4);
   border-radius: 14px;
   padding: 14px 18px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
   animation: fadeIn 0.4s ease 0.3s both;
 }
 .streak-line {
   font-family: 'Inter', sans-serif;
   font-size: 0.95rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.5;
   color: #fff;
   text-align: center;
