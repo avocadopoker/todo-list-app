@@ -788,8 +788,9 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  aspect-ratio: 3 / 2;
-  max-height: 44vh;
+  margin-bottom: -10px;
+  aspect-ratio: 2 / 1;
+  max-height: 30vh;
   overflow: hidden;
 }
 .streak-hero::after {
@@ -799,8 +800,8 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(to bottom, #0a0402 0%, rgba(10,4,2,0) 22%, rgba(10,4,2,0) 78%, #0a0402 100%),
-    radial-gradient(ellipse 75% 70% at 50% 50%, rgba(10,4,2,0) 40%, rgba(10,4,2,0.55) 100%);
+    linear-gradient(to bottom, #0a0402 0%, rgba(10,4,2,0) 14%, rgba(10,4,2,0) 86%, #0a0402 100%),
+    radial-gradient(ellipse 78% 75% at 50% 50%, rgba(10,4,2,0) 45%, rgba(10,4,2,0.5) 100%);
 }
 .streak-bg-flame {
   position: absolute;
@@ -936,7 +937,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   100% { opacity: 0; transform: translate(calc((var(--i) - 3.5) * 7px), -75px) scale(0.2); }
 }
 .streak-line-box {
-  margin-top: 14px;
+  margin-top: 4px;
   max-width: 320px;
   background: rgba(10, 4, 2, 0.92);
   backdrop-filter: blur(6px);
