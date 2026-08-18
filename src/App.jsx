@@ -3,6 +3,72 @@ import { supabase } from './supabaseClient'
 import flameBumpImg from './assets/flame-bump.jpg'
 import './App.css'
 
+/* ---------- brand: squirrel with a flame tail ---------- */
+function FiretailMark({ className = '' }) {
+  return (
+    <svg
+      className={`ft-mark ${className}`}
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <linearGradient id="ftTailGrad" x1="0.15" y1="1" x2="0.8" y2="0">
+          <stop offset="0%" stopColor="#b81a10" />
+          <stop offset="38%" stopColor="#e5322a" />
+          <stop offset="72%" stopColor="#ff8a2b" />
+          <stop offset="100%" stopColor="#ffc247" />
+        </linearGradient>
+      </defs>
+
+      {/* flame tail: sweeps up behind the body and licks into points */}
+      <path
+        d="M30 52
+           C14 52 8 42 10 31
+           C12 19 22 11 31 6
+           C27 15 27 21 31 25
+           C33 17 38 11 46 7
+           C43 16 44 22 48 27
+           C51 20 55 16 60 14
+           C56 24 57 33 51 41
+           C45 49 39 52 30 52 Z"
+        fill="url(#ftTailGrad)"
+      />
+
+      {/* squirrel body, sitting upright */}
+      <path
+        d="M30 57
+           C23 57 19 52 20 46
+           C21 41 25 38 28 36
+           C25 34 24 31 25 28
+           C26 24 30 21 34 21
+           C39 21 43 25 43 30
+           C43 34 41 37 38 39
+           C42 41 44 45 43 49
+           C42 54 37 57 30 57 Z"
+        fill="var(--ink)"
+      />
+
+      {/* ear */}
+      <path d="M28 23 C26 19 27 16 30 15 C31 18 31 21 30 23 Z" fill="var(--ink)" />
+      {/* eye */}
+      <circle cx="36" cy="29" r="2" fill="var(--paper)" />
+    </svg>
+  )
+}
+
+function BrandLockup({ small = false, showSub = false }) {
+  return (
+    <div className={small ? 'brand brand-lockup small' : 'brand brand-lockup'}>
+      <FiretailMark />
+      <span className="brand-words">
+        <span className="brand-fire">Fire</span>tail
+        {showSub && <span className="brand-sub">Habits</span>}
+      </span>
+    </div>
+  )
+}
+
 /* ---------- date helpers ---------- */
 function ymd(d) {
   const y = d.getFullYear()
@@ -252,10 +318,8 @@ function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">
-          <span className="brand-mark">/</span>list
-        </div>
-        <p className="auth-tag">Get it done, in order.</p>
+        <BrandLockup showSub />
+        <p className="auth-tag">Keep the streak alive.</p>
 
         <form onSubmit={submit} className="auth-form">
           {mode === 'signup' && (
@@ -355,9 +419,7 @@ function ResetPassword({ onDone }) {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">
-          <span className="brand-mark">/</span>list
-        </div>
+        <BrandLockup showSub />
         <p className="auth-tag">Choose a new password.</p>
         <form onSubmit={submit} className="auth-form">
           <label>
@@ -3684,9 +3746,7 @@ function Shell({ session }) {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand small">
-          <span className="brand-mark">/</span>list
-        </div>
+        <BrandLockup small />
         <nav className="screen-tabs">
           <button
             className={screen === 'tdl' ? 'active' : ''}
