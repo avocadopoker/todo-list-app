@@ -725,6 +725,12 @@ function StreakBurst({ n, line, rewards, onEnd }) {
         <div className="streak-hero">
           <img className="streak-bg-flame" src={flameBumpImg} alt="" />
           <div className="streak-num-wrap">
+            <div className="num-fire" aria-hidden="true">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <span key={i} className="num-fire-tongue" style={{ '--i': i }} />
+              ))}
+              <span className="num-fire-core" />
+            </div>
             <div className="streak-num">{n}</div>
             <div className="num-embers" aria-hidden="true">
               {Array.from({ length: 8 }).map((_, i) => (
