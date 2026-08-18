@@ -817,14 +817,15 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .num-fire {
   position: absolute;
   left: 50%;
-  bottom: -14%;
+  bottom: -8%;
   transform: translateX(-50%);
-  width: 190%;
-  height: 150%;
+  width: 160%;
+  height: 125%;
   pointer-events: none;
   z-index: 0;
   mix-blend-mode: screen;
-  filter: blur(9px) contrast(1.25);
+  filter: blur(11px) contrast(1.1);
+  opacity: 0.62;
 }
 .num-fire-core {
   position: absolute;
@@ -832,35 +833,50 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   bottom: 4%;
   transform: translateX(-50%);
   width: 72%;
-  height: 55%;
+  height: 50%;
   border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
-  background: radial-gradient(ellipse at 50% 85%, rgba(255, 240, 190, 0.95) 0%, rgba(255, 175, 55, 0.8) 35%, rgba(255, 90, 25, 0.45) 65%, rgba(200, 40, 10, 0) 100%);
-  animation: fireCorePulse 1.6s ease-in-out infinite;
+  background:
+    radial-gradient(ellipse at 18% 85%, rgba(255, 165, 50, 0.75) 0%, rgba(255, 110, 30, 0.4) 45%, rgba(255, 90, 25, 0) 75%),
+    radial-gradient(ellipse at 82% 85%, rgba(80, 190, 255, 0.75) 0%, rgba(40, 150, 255, 0.4) 45%, rgba(30, 130, 255, 0) 75%),
+    radial-gradient(ellipse at 50% 88%, rgba(255, 250, 235, 0.6) 0%, rgba(255, 245, 230, 0) 60%);
+  animation: fireCorePulse 1.8s ease-in-out infinite;
 }
 @keyframes fireCorePulse {
-  0%, 100% { transform: translateX(-50%) scale(1, 1); opacity: 0.9; }
-  40% { transform: translateX(-50%) scale(1.08, 1.14); opacity: 1; }
-  70% { transform: translateX(-50%) scale(0.95, 0.92); opacity: 0.82; }
+  0%, 100% { transform: translateX(-50%) scale(1, 1); opacity: 0.8; }
+  40% { transform: translateX(-50%) scale(1.05, 1.09); opacity: 0.92; }
+  70% { transform: translateX(-50%) scale(0.97, 0.95); opacity: 0.74; }
 }
 .num-fire-tongue {
   position: absolute;
   bottom: 6%;
   left: calc(50% + (var(--i) - 3) * 15%);
   width: 30%;
-  height: 62%;
+  height: 52%;
   transform-origin: 50% 100%;
   border-radius: 50% 50% 42% 42% / 72% 72% 28% 28%;
-  background: radial-gradient(ellipse at 50% 88%, rgba(255, 250, 220, 0.9) 0%, rgba(255, 195, 70, 0.75) 30%, rgba(255, 105, 30, 0.5) 60%, rgba(190, 35, 8, 0) 100%);
-  opacity: 0.85;
-  animation: fireTongue 1.9s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.31s);
+  background: radial-gradient(ellipse at 50% 88%,
+    rgba(255, 252, 240, 0.55) 0%,
+    var(--tongue-mid) 32%,
+    var(--tongue-out) 62%,
+    rgba(0, 0, 0, 0) 100%);
+  opacity: 0.7;
+  animation: fireTongue 2.1s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.34s);
 }
+/* left tongues burn orange, right tongues burn blue, middle blends */
+.num-fire-tongue:nth-child(1) { --tongue-mid: rgba(255, 175, 55, 0.7); --tongue-out: rgba(255, 95, 25, 0.45); }
+.num-fire-tongue:nth-child(2) { --tongue-mid: rgba(255, 185, 70, 0.68); --tongue-out: rgba(255, 115, 35, 0.42); }
+.num-fire-tongue:nth-child(3) { --tongue-mid: rgba(255, 205, 120, 0.62); --tongue-out: rgba(255, 150, 80, 0.38); }
+.num-fire-tongue:nth-child(4) { --tongue-mid: rgba(230, 225, 235, 0.6); --tongue-out: rgba(170, 170, 220, 0.36); }
+.num-fire-tongue:nth-child(5) { --tongue-mid: rgba(150, 210, 255, 0.62); --tongue-out: rgba(80, 170, 255, 0.38); }
+.num-fire-tongue:nth-child(6) { --tongue-mid: rgba(100, 195, 255, 0.68); --tongue-out: rgba(45, 150, 255, 0.42); }
+.num-fire-tongue:nth-child(7) { --tongue-mid: rgba(80, 185, 255, 0.7); --tongue-out: rgba(30, 140, 255, 0.45); }
 @keyframes fireTongue {
-  0% { transform: translateX(-50%) scaleY(0.7) scaleX(1) skewX(0deg); opacity: 0.5; }
-  25% { transform: translateX(-50%) scaleY(1.15) scaleX(0.9) skewX(-5deg); opacity: 0.95; }
-  50% { transform: translateX(-50%) scaleY(0.9) scaleX(1.06) skewX(4deg); opacity: 0.75; }
-  75% { transform: translateX(-50%) scaleY(1.25) scaleX(0.86) skewX(-3deg); opacity: 0.9; }
-  100% { transform: translateX(-50%) scaleY(0.7) scaleX(1) skewX(0deg); opacity: 0.5; }
+  0% { transform: translateX(-50%) scaleY(0.75) scaleX(1) skewX(0deg); opacity: 0.4; }
+  25% { transform: translateX(-50%) scaleY(1.08) scaleX(0.93) skewX(-4deg); opacity: 0.78; }
+  50% { transform: translateX(-50%) scaleY(0.92) scaleX(1.04) skewX(3deg); opacity: 0.6; }
+  75% { transform: translateX(-50%) scaleY(1.15) scaleX(0.9) skewX(-2deg); opacity: 0.72; }
+  100% { transform: translateX(-50%) scaleY(0.75) scaleX(1) skewX(0deg); opacity: 0.4; }
 }
 .streak-num-wrap {
   position: relative;
@@ -903,12 +919,15 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   position: absolute;
   left: calc(50% + (var(--i) - 3.5) * 13px);
   bottom: 18%;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: radial-gradient(circle, #fff6c9 0%, #ffb03d 55%, transparent 100%);
   opacity: 0;
   animation: emberRise 2.8s ease-in calc(var(--i) * 0.34s) infinite;
+}
+.num-embers span:nth-child(n+5) {
+  background: radial-gradient(circle, #eaf8ff 0%, #5cc0ff 55%, transparent 100%);
 }
 @keyframes emberRise {
   0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
