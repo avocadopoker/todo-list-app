@@ -1788,10 +1788,165 @@ function ListsScreen({
 }
 
 /* ---------- recurring screen ---------- */
+/* ---------- habit builder presets ---------- */
+const BUILDER_CATEGORIES = [
+  {
+    id: 'cleaning',
+    label: 'Cleaning',
+    items: [
+      { title: 'Make the bed', interval: 1, unit: 'day' },
+      { title: 'Wash the dishes', interval: 1, unit: 'day' },
+      { title: 'Wipe kitchen counters', interval: 1, unit: 'day' },
+      { title: 'Take out the trash', interval: 3, unit: 'day' },
+      { title: 'Water the plants', interval: 4, unit: 'day' },
+      { title: 'Vacuum the floors', interval: 1, unit: 'week' },
+      { title: 'Change bed sheets', interval: 1, unit: 'week' },
+      { title: 'Clean the bathroom', interval: 1, unit: 'week' },
+      { title: 'Mop the floors', interval: 2, unit: 'week' },
+      { title: 'Do the laundry', interval: 1, unit: 'week' },
+      { title: 'Clean out the fridge', interval: 2, unit: 'week' },
+      { title: 'Dust surfaces and shelves', interval: 2, unit: 'week' },
+      { title: 'Clean mirrors and windows', interval: 1, unit: 'month' },
+      { title: 'Wash towels', interval: 1, unit: 'week' },
+      { title: 'Descale the kettle / coffee machine', interval: 1, unit: 'month' },
+      { title: 'Clean the oven', interval: 3, unit: 'month' },
+      { title: 'Flip / rotate the mattress', interval: 3, unit: 'month' },
+      { title: 'Replace air filters', interval: 3, unit: 'month' },
+      { title: 'Deep clean the shower head', interval: 3, unit: 'month' },
+      { title: 'Declutter one drawer or shelf', interval: 1, unit: 'month' },
+    ],
+  },
+]
+
+function HabitBuilder({ myId, onDone }) {
+  const [categoryId, setCategoryId] = useState('')
+  const [picked, setPicked] = useState({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const category = BUILDER_CATEGORIES.find((c) => c.id === categoryId)
+
+  function toggleItem(title, item) {
+    setPicked((prev) => {
+      const next = { ...prev }
+      if (next[title]) delete next[title]
+      else next[title] = { interval: item.interval, unit: item.unit }
+      return next
+    })
+  }
+
+  function setField(title, field, value) {
+    setPicked((prev) => ({ ...prev, [title]: { ...prev[title], [field]: value } }))
+  }
+
+  function changeCategory(id) {
+    setCategoryId(id)
+    setPicked({})
+    setErr('')
+  }
+
+  const pickedCount = Object.keys(picked).length
+
+  async function addSelected() {
+    if (pickedCount === 0) return
+    setBusy(true)
+    setErr('')
+    const due = today()
+    const rows = Object.entries(picked).map(([title, cfg]) => ({
+      title,
+      due_date: due,
+      due_time: null,
+      duration: null,
+      repeat_interval: Math.max(1, Number(cfg.interval) || 1),
+      repeat_unit: cfg.unit,
+      repeat_anchor: Number(due.slice(8, 10)),
+      reward: null,
+      user_id: myId,
+      assigned_group_id: null,
+    }))
+    const { error } = await supabase.from('tasks').insert(rows)
+    setBusy(false)
+    if (error) setErr(error.message)
+    else onDone()
+  }
+
+  return (
+    <div className="builder">
+      <p className="builder-intro">
+        Pick a category, tick the habits you want, and set how often you want to do each one.
+      </p>
+
+      <label className="builder-select-label">
+        Category
+        <select value={categoryId} onChange={(e) => changeCategory(e.target.value)}>
+          <option value="">Choose a category...</option>
+          {BUILDER_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {category && (
+        <ul className="builder-list">
+          {category.items.map((item) => {
+            const cfg = picked[item.title]
+            const on = !!cfg
+            return (
+              <li key={item.title} className={on ? 'builder-item on' : 'builder-item'}>
+                <label className="builder-check">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggleItem(item.title, item)}
+                  />
+                  <span>{item.title}</span>
+                </label>
+                {on && (
+                  <div className="builder-freq">
+                    <span>every</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={cfg.interval}
+                      onChange={(e) => setField(item.title, 'interval', e.target.value)}
+                    />
+                    <select
+                      value={cfg.unit}
+                      onChange={(e) => setField(item.title, 'unit', e.target.value)}
+                    >
+                      <option value="day">day(s)</option>
+                      <option value="week">week(s)</option>
+                      <option value="month">month(s)</option>
+                    </select>
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {err && <p className="err">{err}</p>}
+
+      {pickedCount > 0 && (
+        <div className="builder-bar">
+          <span>{pickedCount} selected</span>
+          <button onClick={addSelected} disabled={busy}>
+            {busy ? 'Adding...' : `Add to my habits`}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [tab, setTab] = useState('mine')
 
   const recurring = tasks
     .filter((t) => t.repeat_unit)
@@ -1851,38 +2006,59 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
 
   return (
     <div className="tdl">
-      {taskLoading ? (
-        <p className="empty">Loading...</p>
-      ) : recurring.length === 0 ? (
-        <p className="empty">No habits yet. Add one with the + button.</p>
+      <div className="view-switch" style={{ marginBottom: '18px' }}>
+        <button className={tab === 'mine' ? 'active' : ''} onClick={() => setTab('mine')}>
+          My habits
+        </button>
+        <button className={tab === 'builder' ? 'active' : ''} onClick={() => setTab('builder')}>
+          Habit builder
+        </button>
+      </div>
+
+      {tab === 'builder' ? (
+        <HabitBuilder
+          myId={myId}
+          onDone={() => {
+            setTab('mine')
+            refresh()
+          }}
+        />
       ) : (
-        <ul className="task-list">
-          {recurring.map((t) => (
-            <TaskRow
-              key={t.id}
-              task={t}
-              selected={selected.has(t.id)}
-              onSelect={toggleSelect}
-              timeless={false}
-              fromName={
-                t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
-              }
-              groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
-              onEdit={setEditing}
-            />
-          ))}
-        </ul>
-      )}
+        <>
+          {taskLoading ? (
+            <p className="empty">Loading...</p>
+          ) : recurring.length === 0 ? (
+            <p className="empty">No habits yet. Add one with the + button.</p>
+          ) : (
+            <ul className="task-list">
+              {recurring.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  selected={selected.has(t.id)}
+                  onSelect={toggleSelect}
+                  timeless={false}
+                  fromName={
+                    t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
+                  }
+                  groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
+                  onEdit={setEditing}
+                />
+              ))}
+            </ul>
+          )}
 
-      <button className="fab" onClick={() => setAdding(true)} aria-label="Add habit">
-        +
-      </button>
+          <button className="fab" onClick={() => setAdding(true)} aria-label="Add habit">
+            +
+          </button>
 
-      {selected.size > 0 && (
-        <div className="delete-bar">
-          <span>{selected.size} selected</span>
-          <button onClick={deleteSelected}>Delete selected</button>
-        </div>
+          {selected.size > 0 && (
+            <div className="delete-bar">
+              <span>{selected.size} selected</span>
+              <button onClick={deleteSelected}>Delete selected</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

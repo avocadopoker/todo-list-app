@@ -1418,3 +1418,119 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   padding: 2px 8px;
   border-radius: 20px;
 }
+
+/* ---------- habit builder ---------- */
+.builder {
+  padding: 0 0 90px;
+}
+.builder-intro {
+  font-size: 0.88rem;
+  color: var(--muted, #6b6b6b);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.builder-select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted, #6b6b6b);
+  margin-bottom: 18px;
+}
+.builder-select-label select {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  padding: 11px 12px;
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 10px;
+  background: #fff;
+}
+.builder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.builder-item {
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.builder-item.on {
+  border-color: var(--red);
+  background: #fff7f6;
+}
+.builder-check {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 0.95rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.builder-check input {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  accent-color: var(--red);
+}
+.builder-freq {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 11px 0 0 30px;
+  font-size: 0.85rem;
+  color: var(--muted, #6b6b6b);
+}
+.builder-freq input {
+  width: 56px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  padding: 7px 8px;
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 8px;
+  background: #fff;
+}
+.builder-freq select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  padding: 7px 8px;
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 8px;
+  background: #fff;
+}
+.builder-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px calc(13px + env(safe-area-inset-bottom));
+  background: var(--ink, #1c1c1c);
+  color: #fff;
+  font-size: 0.9rem;
+}
+.builder-bar button {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: var(--red);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.builder-bar button:disabled { opacity: 0.6; }
