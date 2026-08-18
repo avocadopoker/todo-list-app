@@ -2360,6 +2360,336 @@ function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) 
   )
 }
 
+/* ---------- Goal Tracker: goals with sub-steps and a progress bar ---------- */
+function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
+  const [openGoalId, setOpenGoalId] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [title, setTitle] = useState('')
+  const [targetDate, setTargetDate] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const mine = goals
+    .filter((g) => g.user_id === myId)
+    .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
+
+  const stepsFor = (goalId) =>
+    goalSteps
+      .filter((s) => s.goal_id === goalId)
+      .sort((a, b) => {
+        if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
+        return (a.created_at || '').localeCompare(b.created_at || '')
+      })
+
+  async function addGoal(e) {
+    e.preventDefault()
+    const t = title.trim()
+    if (!t) return
+    setBusy(true)
+    await supabase.from('goals').insert([
+      { title: t, target_date: targetDate || null, user_id: myId },
+    ])
+    setTitle('')
+    setTargetDate('')
+    setBusy(false)
+    setAdding(false)
+    refresh()
+  }
+
+  const openGoal = mine.find((g) => g.id === openGoalId)
+  if (openGoal) {
+    return (
+      <GoalDetail
+        goal={openGoal}
+        steps={stepsFor(openGoal.id)}
+        refresh={refresh}
+        onBack={() => setOpenGoalId(null)}
+        onDeleted={() => setOpenGoalId(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="tdl">
+      {mine.length === 0 ? (
+        <p className="empty">No goals yet. Add one with the + button.</p>
+      ) : (
+        <ul className="task-list goal-list">
+          {mine.map((g) => {
+            const steps = stepsFor(g.id)
+            const done = steps.filter((s) => s.is_complete).length
+            const pct = steps.length ? Math.round((done / steps.length) * 100) : 0
+            return (
+              <li
+                key={g.id}
+                className="task goal-card"
+                onClick={() => setOpenGoalId(g.id)}
+              >
+                <div className="task-body">
+                  <span className="task-title">{g.title}</span>
+                  <div className="goal-progress-row">
+                    <div className="goal-progress-track">
+                      <div
+                        className="goal-progress-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="goal-progress-label">
+                      {steps.length ? `${done}/${steps.length}` : 'No steps yet'}
+                    </span>
+                  </div>
+                  {g.target_date && (
+                    <span className="goal-target-date">Target: {g.target_date}</span>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {adding ? (
+        <form onSubmit={addGoal} className="add-item-row goal-add-form">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Goal title..."
+            autoFocus
+          />
+          <label className="goal-date-label">
+            Target date (optional)
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn-primary" disabled={busy}>
+            Add goal
+          </button>
+          <button type="button" className="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add goal">
+          +
+        </button>
+      )}
+    </div>
+  )
+}
+
+function GoalDetail({ goal, steps, refresh, onBack, onDeleted }) {
+  const [adding, setAdding] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const done = steps.filter((s) => s.is_complete).length
+  const pct = steps.length ? Math.round((done / steps.length) * 100) : 0
+
+  async function addStep(e) {
+    e.preventDefault()
+    const title = text.trim()
+    if (!title) return
+    setBusy(true)
+    const nextPos = steps.length ? (steps[steps.length - 1].position || 0) + 1 : 1
+    await supabase
+      .from('goal_steps')
+      .insert([{ goal_id: goal.id, title, position: nextPos }])
+    setText('')
+    setBusy(false)
+    setAdding(false)
+    refresh()
+  }
+
+  async function toggleStep(step) {
+    await supabase
+      .from('goal_steps')
+      .update({ is_complete: !step.is_complete })
+      .eq('id', step.id)
+    refresh()
+  }
+
+  async function removeStep(id) {
+    await supabase.from('goal_steps').delete().eq('id', id)
+    refresh()
+  }
+
+  async function moveStep(step, direction) {
+    const idx = steps.findIndex((s) => s.id === step.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= steps.length) return
+    const other = steps[swapIdx]
+    await Promise.all([
+      supabase.from('goal_steps').update({ position: other.position || 0 }).eq('id', step.id),
+      supabase.from('goal_steps').update({ position: step.position || 0 }).eq('id', other.id),
+    ])
+    refresh()
+  }
+
+  function startEdit(step) {
+    setEditingId(step.id)
+    setEditText(step.title)
+  }
+
+  async function saveEdit() {
+    const title = editText.trim()
+    const id = editingId
+    setEditingId(null)
+    if (!title || !id) return
+    await supabase.from('goal_steps').update({ title }).eq('id', id)
+    refresh()
+  }
+
+  async function deleteThisGoal() {
+    await supabase.from('goals').delete().eq('id', goal.id)
+    refresh()
+    onDeleted()
+  }
+
+  return (
+    <div className="ideas">
+      <div className="add-head">
+        <button className="ghost" onClick={onBack}>
+          ← Back
+        </button>
+        <h2>{goal.title}</h2>
+      </div>
+
+      <div className="goal-detail-progress">
+        <div className="goal-progress-track">
+          <div className="goal-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="goal-progress-label">
+          {steps.length ? `${done}/${steps.length} steps done` : 'No steps yet'}
+        </span>
+      </div>
+      {goal.target_date && (
+        <p className="goal-target-date goal-target-date-detail">Target: {goal.target_date}</p>
+      )}
+
+      {steps.length === 0 ? (
+        <p className="empty">Break this goal into steps with the + button.</p>
+      ) : (
+        <ul className="task-list">
+          {steps.map((step, i) => (
+            <li key={step.id} className={`task ${step.is_complete ? 'idea-done' : ''}`}>
+              <span className="spine" aria-hidden="true" />
+              <label className="task-check">
+                <input
+                  type="checkbox"
+                  checked={step.is_complete}
+                  onChange={() => toggleStep(step)}
+                  aria-label={`Mark ${step.title} done`}
+                />
+                <span className="box" />
+              </label>
+              <div className="task-body">
+                {editingId === step.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editText}
+                    autoFocus
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="task-title task-title-editable"
+                    onClick={() => startEdit(step)}
+                  >
+                    {step.title}
+                  </span>
+                )}
+              </div>
+              <div className="item-actions">
+                <div className="item-reorder">
+                  <button
+                    className="item-move"
+                    onClick={() => moveStep(step, 'up')}
+                    disabled={i === 0}
+                    aria-label={`Move ${step.title} up`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="item-move"
+                    onClick={() => moveStep(step, 'down')}
+                    disabled={i === steps.length - 1}
+                    aria-label={`Move ${step.title} down`}
+                  >
+                    ▼
+                  </button>
+                </div>
+                <button
+                  className="list-remove"
+                  onClick={() => removeStep(step.id)}
+                  aria-label={`Delete ${step.title}`}
+                >
+                  ×
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form onSubmit={addStep} className="add-item-row">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Add a step..."
+            autoFocus
+          />
+          <button type="submit" className="btn-primary" disabled={busy}>
+            Add
+          </button>
+          <button type="button" className="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add step">
+          +
+        </button>
+      )}
+
+      <div className="list-delete-zone">
+        {confirmDelete ? (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              Delete "{goal.title}" and all its steps? This can't be undone.
+            </p>
+            <div className="invite-actions">
+              <button className="btn-danger" onClick={deleteThisGoal}>
+                Yes, delete this goal
+              </button>
+              <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
+            Delete this goal
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ---------- setup screen (just name / sign out / delete) ---------- */
 function Setup({ profile, myId, refresh, rewardLines, incomingRewards, friends, givenRewards }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
@@ -3061,6 +3391,8 @@ function Shell({ session }) {
   const [tasks, setTasks] = useState(cached?.tasks || [])
   const [lists, setLists] = useState(cached?.lists || [])
   const [listItems, setListItems] = useState(cached?.listItems || [])
+  const [goals, setGoals] = useState(cached?.goals || [])
+  const [goalSteps, setGoalSteps] = useState(cached?.goalSteps || [])
   const [rewardLines, setRewardLines] = useState(cached?.rewardLines || [])
   const [profile, setProfile] = useState(cached?.profile || null)
   const [groups, setGroups] = useState(cached?.groups || [])
@@ -3129,6 +3461,8 @@ function Shell({ session }) {
       inviteRes,
       listRes,
       listItemRes,
+      goalRes,
+      goalStepRes,
       rewardRes,
       friendshipRes,
       friendInviteRes,
@@ -3142,6 +3476,8 @@ function Shell({ session }) {
       supabase.from('group_invites').select('*').eq('status', 'pending'),
       supabase.from('lists').select('*'),
       supabase.from('list_items').select('*'),
+      supabase.from('goals').select('*'),
+      supabase.from('goal_steps').select('*'),
       supabase.from('reward_lines').select('*'),
       supabase.from('friendships').select('*'),
       supabase.from('friend_invites').select('*').eq('status', 'pending'),
@@ -3156,6 +3492,8 @@ function Shell({ session }) {
     setTasks(taskData)
     setLists(listRes.data || [])
     setListItems(listItemRes.data || [])
+    setGoals(goalRes.data || [])
+    setGoalSteps(goalStepRes.data || [])
     setRewardLines(rewardRes.data || [])
     setGroups(groupRes.data || [])
     setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
@@ -3283,6 +3621,8 @@ function Shell({ session }) {
       tasks: taskData,
       lists: listRes.data || [],
       listItems: listItemRes.data || [],
+      goals: goalRes.data || [],
+      goalSteps: goalStepRes.data || [],
       rewardLines: rewardRes.data || [],
       groups: groupRes.data || [],
       members: membersWithNames,
@@ -3368,7 +3708,7 @@ function Shell({ session }) {
           </button>
           <div className="nav-dropdown" ref={setupMenuRef}>
             <button
-              className={`nav-gear-btn${screen === 'setup' || screen === 'habits' ? ' active' : ''}`}
+              className={`nav-gear-btn${screen === 'setup' || screen === 'habits' || screen === 'goals' ? ' active' : ''}`}
               onClick={() => setSetupMenuOpen((o) => !o)}
               aria-label="Setup menu"
             >
@@ -3398,6 +3738,14 @@ function Shell({ session }) {
                   }}
                 >
                   Habits
+                </button>
+                <button
+                  onClick={() => {
+                    setScreen('goals')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Goal Tracker
                 </button>
               </div>
             )}
@@ -3463,6 +3811,14 @@ function Shell({ session }) {
             nameFor={nameFor}
             people={people}
             groups={groups}
+          />
+        )}
+        {screen === 'goals' && (
+          <GoalTrackerScreen
+            goals={goals}
+            goalSteps={goalSteps}
+            refresh={refresh}
+            myId={myId}
           />
         )}
       </main>

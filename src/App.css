@@ -1534,3 +1534,71 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   cursor: pointer;
 }
 .builder-bar button:disabled { opacity: 0.6; }
+
+/* ---------- goal tracker ---------- */
+.goal-card {
+  cursor: pointer;
+  align-items: flex-start;
+}
+.goal-card .task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.goal-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.goal-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line, #e6e6e6);
+  overflow: hidden;
+}
+.goal-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff9d3d, var(--red));
+  transition: width 0.25s ease;
+}
+.goal-progress-label {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--muted, #6b6b6b);
+  font-weight: 600;
+}
+.goal-target-date {
+  font-size: 0.78rem;
+  color: var(--muted, #6b6b6b);
+}
+.goal-target-date-detail {
+  margin: 6px 0 18px;
+}
+.goal-detail-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 4px;
+}
+.goal-add-form {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.goal-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #6b6b6b);
+}
+.goal-date-label input {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 10px;
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 8px;
+}
