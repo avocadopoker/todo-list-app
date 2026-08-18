@@ -2418,6 +2418,12 @@ function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
             const steps = stepsFor(g.id)
             const done = steps.filter((s) => s.is_complete).length
             const pct = steps.length ? Math.round((done / steps.length) * 100) : 0
+            const currentStep = steps.find((s) => !s.is_complete)
+            const currentStepLabel = currentStep
+              ? currentStep.title
+              : steps.length
+              ? 'All steps done! 🎉'
+              : 'No steps yet'
             return (
               <li
                 key={g.id}
@@ -2425,7 +2431,15 @@ function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
                 onClick={() => setOpenGoalId(g.id)}
               >
                 <div className="task-body">
-                  <span className="task-title">{g.title}</span>
+                  <div className="goal-title-row">
+                    <span className="task-title">{g.title}</span>
+                    {g.target_date && (
+                      <>
+                        <span className="goal-sep">|</span>
+                        <span className="goal-target-inline">Target: {g.target_date}</span>
+                      </>
+                    )}
+                  </div>
                   <div className="goal-progress-row">
                     <div className="goal-progress-track">
                       <div
@@ -2437,9 +2451,7 @@ function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
                       {steps.length ? `${done}/${steps.length}` : 'No steps yet'}
                     </span>
                   </div>
-                  {g.target_date && (
-                    <span className="goal-target-date">Target: {g.target_date}</span>
-                  )}
+                  <span className="goal-current-step">{currentStepLabel}</span>
                 </div>
               </li>
             )
@@ -2481,7 +2493,6 @@ function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
 }
 
 function GoalDetail({ goal, steps, refresh, onBack, onDeleted }) {
-  const [adding, setAdding] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -2502,7 +2513,6 @@ function GoalDetail({ goal, steps, refresh, onBack, onDeleted }) {
       .insert([{ goal_id: goal.id, title, position: nextPos }])
     setText('')
     setBusy(false)
-    setAdding(false)
     refresh()
   }
 
@@ -2643,27 +2653,17 @@ function GoalDetail({ goal, steps, refresh, onBack, onDeleted }) {
         </ul>
       )}
 
-      {adding ? (
-        <form onSubmit={addStep} className="add-item-row">
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Add a step..."
-            autoFocus
-          />
-          <button type="submit" className="btn-primary" disabled={busy}>
-            Add
-          </button>
-          <button type="button" className="ghost" onClick={() => setAdding(false)}>
-            Cancel
-          </button>
-        </form>
-      ) : (
-        <button className="fab" onClick={() => setAdding(true)} aria-label="Add step">
-          +
+      <form onSubmit={addStep} className="add-item-row goal-step-form">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add a step..."
+        />
+        <button type="submit" className="btn-primary" disabled={busy || !text.trim()}>
+          Add
         </button>
-      )}
+      </form>
 
       <div className="list-delete-zone">
         {confirmDelete ? (

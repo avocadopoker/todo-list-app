@@ -1569,6 +1569,26 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   color: var(--muted, #6b6b6b);
   font-weight: 600;
 }
+.goal-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.goal-sep {
+  color: var(--line, #d0d0d0);
+  font-weight: 400;
+}
+.goal-target-inline {
+  font-size: 0.78rem;
+  color: var(--muted, #6b6b6b);
+  font-weight: 600;
+}
+.goal-current-step {
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-weight: 500;
+}
 .goal-target-date {
   font-size: 0.78rem;
   color: var(--muted, #6b6b6b);
@@ -1581,6 +1601,9 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   align-items: center;
   gap: 10px;
   margin: 4px 0 4px;
+}
+.goal-step-form {
+  margin-top: 4px;
 }
 .goal-add-form {
   flex-direction: column;
