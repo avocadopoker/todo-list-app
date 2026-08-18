@@ -724,7 +724,14 @@ function StreakBurst({ n, line, rewards, onEnd }) {
           ))}
         </div>
         <div className="streak-hero">
-          <div className="streak-num">{n}</div>
+          <div className="streak-num-wrap">
+            <div className="streak-num">{n}</div>
+            <div className="num-embers" aria-hidden="true">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span key={i} style={{ '--i': i }} />
+              ))}
+            </div>
+          </div>
         </div>
         {line && <div className="streak-line-box"><div className="streak-line">{line}</div></div>}
         {freshRewards.length > 0 && (
