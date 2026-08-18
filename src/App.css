@@ -833,37 +833,22 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 }
 .streak-hero {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-  margin-bottom: -10px;
-  aspect-ratio: 2 / 1;
-  max-height: 30vh;
-  overflow: hidden;
+  display: block;
+  width: min(100%, 380px);
+  margin: 0 auto 6px;
 }
-.streak-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    linear-gradient(to bottom, #0a0402 0%, rgba(10,4,2,0) 14%, rgba(10,4,2,0) 86%, #0a0402 100%),
-    radial-gradient(ellipse 78% 75% at 50% 50%, rgba(10,4,2,0) 45%, rgba(10,4,2,0.5) 100%);
-}
-.streak-bg-flame {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+.streak-squirrels {
+  display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.95;
+  filter: drop-shadow(0 6px 26px rgba(255, 120, 40, 0.35));
+  animation: squirrelPop 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+@keyframes squirrelPop {
+  from { opacity: 0; transform: scale(0.72); }
+  to { opacity: 1; transform: scale(1); }
 }
 .num-fire {
   position: absolute;
@@ -930,16 +915,18 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   100% { transform: translateX(-50%) scaleY(0.75) scaleX(1) skewX(0deg); opacity: 0.4; }
 }
 .streak-num-wrap {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
   display: inline-block;
   z-index: 2;
-  grid-area: 1 / 1;
 }
 .streak-num {
   position: relative;
   z-index: 1;
   font-family: 'Bebas Neue', 'Space Grotesk', sans-serif;
-  font-size: 5.5rem;
+  font-size: 4.4rem;
   font-weight: 400;
   letter-spacing: 0.02em;
   background: linear-gradient(180deg, #fffbe0 0%, #ffe066 18%, #ffb03d 38%, #ff7a1a 58%, #ff3d1f 78%, #b8140a 100%);

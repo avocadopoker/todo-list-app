@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
-import flameBumpImg from './assets/flame-bump.jpg'
+import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
 import './App.css'
 
@@ -768,7 +768,7 @@ function StreakBurst({ n, line, rewards, onEnd }) {
           ))}
         </div>
         <div className="streak-hero">
-          <img className="streak-bg-flame" src={flameBumpImg} alt="" />
+          <img className="streak-squirrels" src={squirrelHighFiveImg} alt="" />
           <div className="streak-num-wrap">
             <div className="num-fire" aria-hidden="true">
               {Array.from({ length: 7 }).map((_, i) => (
