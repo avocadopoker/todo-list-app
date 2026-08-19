@@ -143,30 +143,37 @@ input:focus {
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--red-tint);
 }
-.time-field-wrap,
-.date-field-wrap {
+.pseudo-field-wrap {
   position: relative;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.time-input,
-.date-input {
-  width: 100%;
-  color: transparent;
+.pseudo-field-wrap:focus-within {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-tint);
 }
-.time-input.has-value,
-.time-input:focus,
-.date-input.has-value,
-.date-input:focus {
-  color: var(--ink);
-}
-.time-placeholder,
-.date-placeholder {
+.pseudo-field-input {
   position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.pseudo-field-display {
+  display: block;
+  padding: 12px 14px;
   font-size: 1rem;
+  color: var(--muted);
   pointer-events: none;
+}
+.pseudo-field-display.has-value {
+  color: var(--ink);
 }
 .auth-msg {
   color: var(--red-press);
@@ -239,8 +246,8 @@ input:focus {
   padding: 4px 10px;
 }
 .nav-icon-img {
-  width: 34px;
-  height: 34px;
+  width: 51px;
+  height: 51px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.3));

@@ -203,6 +203,13 @@ function formatTime(timeStr) {
   const d = new Date(2000, 0, 1, Number(h), Number(m))
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
+// "2026-08-20" -> "Aug 20, 2026"
+function formatDateLabel(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 const VIEWS = [
   { key: 'today', label: 'Today' },
@@ -578,27 +585,33 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRec
           aria-label="Task"
         />
 
-        <div className="date-field-wrap">
+        <div className="pseudo-field-wrap">
           <input
             type="date"
-            className={date ? 'date-input has-value' : 'date-input'}
+            className="pseudo-field-input"
             value={date}
             onChange={(e) => changeDate(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             required
             aria-label="Date"
           />
-          {!date && <span className="date-placeholder">Pick a date</span>}
+          <span className={date ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {date ? formatDateLabel(date) : 'Date'}
+          </span>
         </div>
 
-        <div className="time-field-wrap">
+        <div className="pseudo-field-wrap">
           <input
             type="time"
-            className={time ? 'time-input has-value' : 'time-input'}
+            className="pseudo-field-input"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            aria-label="Time"
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            aria-label="Time of Day"
           />
-          {!time && <span className="time-placeholder">Optional</span>}
+          <span className={time ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {time ? formatTime(time + ':00') : 'Time of Day'}
+          </span>
         </div>
 
         {time && (
@@ -902,27 +915,33 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
           aria-label="Task"
         />
 
-        <div className="date-field-wrap">
+        <div className="pseudo-field-wrap">
           <input
             type="date"
-            className={date ? 'date-input has-value' : 'date-input'}
+            className="pseudo-field-input"
             value={date}
             onChange={(e) => changeDate(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             required
             aria-label="Date"
           />
-          {!date && <span className="date-placeholder">Pick a date</span>}
+          <span className={date ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {date ? formatDateLabel(date) : 'Date'}
+          </span>
         </div>
 
-        <div className="time-field-wrap">
+        <div className="pseudo-field-wrap">
           <input
             type="time"
-            className={time ? 'time-input has-value' : 'time-input'}
+            className="pseudo-field-input"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            aria-label="Time"
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            aria-label="Time of Day"
           />
-          {!time && <span className="time-placeholder">Optional</span>}
+          <span className={time ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {time ? formatTime(time + ':00') : 'Time of Day'}
+          </span>
         </div>
 
         {time && (
