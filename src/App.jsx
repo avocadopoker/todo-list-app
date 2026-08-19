@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
 import navTodayIconImg from './assets/nav-today-icon.png'
+import navListsIconImg from './assets/nav-lists-icon.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -3763,10 +3764,11 @@ function Shell({ session }) {
             <img src={navTodayIconImg} alt="" className="nav-icon-img" />
           </button>
           <button
-            className={screen === 'ideas' ? 'active' : ''}
+            className={screen === 'ideas' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('ideas')}
+            aria-label="Lists"
           >
-            Lists
+            <img src={navListsIconImg} alt="" className="nav-icon-img" />
           </button>
           <button
             className={screen === 'social' ? 'active' : ''}
