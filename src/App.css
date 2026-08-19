@@ -206,6 +206,19 @@ input:focus {
   border-radius: 8px;
 }
 .screen-tabs button.active { background: var(--ink); color: #fff; }
+.screen-tabs button.nav-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 6px;
+}
+.nav-icon-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.3));
+}
 
 .nav-dropdown { position: relative; }
 .nav-gear-btn {

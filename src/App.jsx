@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
+import navTodayIconImg from './assets/nav-today-icon.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -3732,10 +3733,11 @@ function Shell({ session }) {
         <BrandLockup small header />
         <nav className="screen-tabs">
           <button
-            className={screen === 'tdl' ? 'active' : ''}
+            className={screen === 'tdl' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('tdl')}
           >
-            TDL
+            <img src={navTodayIconImg} alt="" className="nav-icon-img" />
+            <span>TDL</span>
           </button>
           <button
             className={screen === 'ideas' ? 'active' : ''}
