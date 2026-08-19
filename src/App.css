@@ -143,18 +143,23 @@ input:focus {
   border-color: var(--red);
   box-shadow: 0 0 0 3px var(--red-tint);
 }
-.time-field-wrap {
+.time-field-wrap,
+.date-field-wrap {
   position: relative;
 }
-.time-input {
+.time-input,
+.date-input {
   width: 100%;
   color: transparent;
 }
 .time-input.has-value,
-.time-input:focus {
+.time-input:focus,
+.date-input.has-value,
+.date-input:focus {
   color: var(--ink);
 }
-.time-placeholder {
+.time-placeholder,
+.date-placeholder {
   position: absolute;
   left: 14px;
   top: 50%;

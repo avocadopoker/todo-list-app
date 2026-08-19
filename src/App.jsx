@@ -535,8 +535,8 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRec
     if (!name) return
     setBusy(true)
     setErr('')
-    const due = recurring ? date || today() : date || null
-    const useTime = due ? time : ''
+    const due = date
+    const useTime = time
     const isGroup = assignee.startsWith('g:')
     const targetId = assignee.slice(2)
     const { error } = await supabase.from('tasks').insert([
@@ -568,42 +568,40 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRec
       </div>
 
       <form onSubmit={save} className="add-form">
-        <label>
-          Task
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs doing?"
+          autoFocus
+          required
+          aria-label="Task"
+        />
+
+        <div className="date-field-wrap">
           <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What needs doing?"
-            autoFocus
+            type="date"
+            className={date ? 'date-input has-value' : 'date-input'}
+            value={date}
+            onChange={(e) => changeDate(e.target.value)}
             required
+            aria-label="Date"
           />
-        </label>
+          {!date && <span className="date-placeholder">Pick a date</span>}
+        </div>
 
-        <label>
-          Date
-          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
-          </span>
-        </label>
+        <div className="time-field-wrap">
+          <input
+            type="time"
+            className={time ? 'time-input has-value' : 'time-input'}
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            aria-label="Time"
+          />
+          {!time && <span className="time-placeholder">Optional</span>}
+        </div>
 
-        {date && (
-          <label>
-            Time
-            <div className="time-field-wrap">
-              <input
-                type="time"
-                className={time ? 'time-input has-value' : 'time-input'}
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-              {!time && <span className="time-placeholder">Optional</span>}
-            </div>
-          </label>
-        )}
-
-        {date && time && (
+        {time && (
           <div className="field">
             <span className="field-label">How long will it take?</span>
             <div className="duration-picker">
@@ -856,8 +854,8 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
     if (!name) return
     setBusy(true)
     setErr('')
-    const due = recurring ? date || today() : date || null
-    const useTime = due ? time : ''
+    const due = date
+    const useTime = time
     const willBeHabit = recurring && (repeatUnit === 'day' || repeatUnit === 'week' || repeatUnit === 'month')
     const isGroup = assignee.startsWith('g:')
     const targetId = assignee.slice(2)
@@ -894,42 +892,40 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
       </div>
 
       <form onSubmit={save} className="add-form">
-        <label>
-          Task
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs doing?"
+          autoFocus
+          required
+          aria-label="Task"
+        />
+
+        <div className="date-field-wrap">
           <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What needs doing?"
-            autoFocus
+            type="date"
+            className={date ? 'date-input has-value' : 'date-input'}
+            value={date}
+            onChange={(e) => changeDate(e.target.value)}
             required
+            aria-label="Date"
           />
-        </label>
+          {!date && <span className="date-placeholder">Pick a date</span>}
+        </div>
 
-        <label>
-          Date
-          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
-          </span>
-        </label>
+        <div className="time-field-wrap">
+          <input
+            type="time"
+            className={time ? 'time-input has-value' : 'time-input'}
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            aria-label="Time"
+          />
+          {!time && <span className="time-placeholder">Optional</span>}
+        </div>
 
-        {date && (
-          <label>
-            Time
-            <div className="time-field-wrap">
-              <input
-                type="time"
-                className={time ? 'time-input has-value' : 'time-input'}
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-              {!time && <span className="time-placeholder">Optional</span>}
-            </div>
-          </label>
-        )}
-
-        {date && time && (
+        {time && (
           <div className="field">
             <span className="field-label">How long will it take?</span>
             <div className="duration-picker">
