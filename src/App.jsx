@@ -3735,9 +3735,9 @@ function Shell({ session }) {
           <button
             className={screen === 'tdl' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('tdl')}
+            aria-label="Today"
           >
             <img src={navTodayIconImg} alt="" className="nav-icon-img" />
-            <span>TDL</span>
           </button>
           <button
             className={screen === 'ideas' ? 'active' : ''}
