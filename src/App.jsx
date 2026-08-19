@@ -590,12 +590,16 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRec
 
         {date && (
           <label>
-            Time (optional)
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
+            Time
+            <div className="time-field-wrap">
+              <input
+                type="time"
+                className={time ? 'time-input has-value' : 'time-input'}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+              {!time && <span className="time-placeholder">Optional</span>}
+            </div>
           </label>
         )}
 
@@ -912,12 +916,16 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
 
         {date && (
           <label>
-            Time (optional)
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
+            Time
+            <div className="time-field-wrap">
+              <input
+                type="time"
+                className={time ? 'time-input has-value' : 'time-input'}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+              {!time && <span className="time-placeholder">Optional</span>}
+            </div>
           </label>
         )}
 
