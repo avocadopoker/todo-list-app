@@ -11,8 +11,26 @@ import checkboxAcornImg from './assets/checkbox-acorn.png'
 import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
 import burnButtonSquirrelImg from './assets/burn-button-squirrel.png'
 import burnButtonPressedImg from './assets/burn-button-pressed.png'
-import flameTongueImg from './assets/flame-tongue.png'
-import flameTongue2Img from './assets/flame-tongue-2.png'
+import flame01Img from './assets/flames/flame-01.png'
+import flame02Img from './assets/flames/flame-02.png'
+import flame03Img from './assets/flames/flame-03.png'
+import flame04Img from './assets/flames/flame-04.png'
+import flame05Img from './assets/flames/flame-05.png'
+import flame06Img from './assets/flames/flame-06.png'
+import flame07Img from './assets/flames/flame-07.png'
+import flame08Img from './assets/flames/flame-08.png'
+import flame09Img from './assets/flames/flame-09.png'
+import flame10Img from './assets/flames/flame-10.png'
+import flame11Img from './assets/flames/flame-11.png'
+import flame12Img from './assets/flames/flame-12.png'
+import flame13Img from './assets/flames/flame-13.png'
+import flame14Img from './assets/flames/flame-14.png'
+import flame15Img from './assets/flames/flame-15.png'
+import flame16Img from './assets/flames/flame-16.png'
+import flame17Img from './assets/flames/flame-17.png'
+import flame18Img from './assets/flames/flame-18.png'
+import flame19Img from './assets/flames/flame-19.png'
+import flame20Img from './assets/flames/flame-20.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -448,29 +466,36 @@ function ResetPassword({ onDone }) {
 /* ---------- task row ---------- */
 // hand-scattered layout for the row-burn flame cluster - deliberately
 // irregular (not evenly spaced) so it reads as a wild burst rather than a
-// tidy row of identical flames.
+// tidy row of identical flames. The image for each slot cycles through the
+// full FLAME_IMGS set (20 distinct hand-picked shapes) by index.
+const FLAME_IMGS = [
+  flame01Img, flame02Img, flame03Img, flame04Img, flame05Img,
+  flame06Img, flame07Img, flame08Img, flame09Img, flame10Img,
+  flame11Img, flame12Img, flame13Img, flame14Img, flame15Img,
+  flame16Img, flame17Img, flame18Img, flame19Img, flame20Img,
+]
 const FLAME_TONGUES = [
-  { img: 0, left: 2, bottom: 0, width: 22, rot: -10, delay: 0 },
-  { img: 1, left: 9, bottom: 6, width: 13, rot: 14, delay: 0.06 },
-  { img: 0, left: 14, bottom: -2, width: 17, rot: 4, delay: 0.02 },
-  { img: 1, left: 21, bottom: 3, width: 15, rot: -16, delay: 0.09 },
-  { img: 0, left: 27, bottom: 1, width: 26, rot: 8, delay: 0.04 },
-  { img: 0, left: 33, bottom: -3, width: 14, rot: -6, delay: 0.11 },
-  { img: 1, left: 38, bottom: 5, width: 18, rot: 12, delay: 0.01 },
-  { img: 0, left: 44, bottom: 0, width: 23, rot: -14, delay: 0.07 },
-  { img: 1, left: 49, bottom: -1, width: 12, rot: 18, delay: 0.13 },
-  { img: 0, left: 54, bottom: 4, width: 19, rot: -4, delay: 0.03 },
-  { img: 0, left: 59, bottom: -2, width: 25, rot: 10, delay: 0.1 },
-  { img: 1, left: 65, bottom: 2, width: 14, rot: -12, delay: 0.05 },
-  { img: 0, left: 70, bottom: 0, width: 20, rot: 6, delay: 0.14 },
-  { img: 1, left: 75, bottom: 6, width: 16, rot: -18, delay: 0.02 },
-  { img: 0, left: 79, bottom: -3, width: 22, rot: 14, delay: 0.08 },
-  { img: 0, left: 84, bottom: 3, width: 15, rot: -8, delay: 0.12 },
-  { img: 1, left: 89, bottom: -1, width: 13, rot: 16, delay: 0.04 },
-  { img: 0, left: 93, bottom: 1, width: 21, rot: -10, delay: 0.09 },
-  { img: 0, left: 6, bottom: 8, width: 12, rot: 20, delay: 0.15 },
-  { img: 1, left: 61, bottom: 7, width: 12, rot: -20, delay: 0.06 },
-  { img: 0, left: 96, bottom: 5, width: 14, rot: 8, delay: 0.11 },
+  { left: 2, bottom: 0, width: 22, rot: -10, delay: 0 },
+  { left: 9, bottom: 6, width: 13, rot: 14, delay: 0.06 },
+  { left: 14, bottom: -2, width: 17, rot: 4, delay: 0.02 },
+  { left: 21, bottom: 3, width: 15, rot: -16, delay: 0.09 },
+  { left: 27, bottom: 1, width: 26, rot: 8, delay: 0.04 },
+  { left: 33, bottom: -3, width: 14, rot: -6, delay: 0.11 },
+  { left: 38, bottom: 5, width: 18, rot: 12, delay: 0.01 },
+  { left: 44, bottom: 0, width: 23, rot: -14, delay: 0.07 },
+  { left: 49, bottom: -1, width: 12, rot: 18, delay: 0.13 },
+  { left: 54, bottom: 4, width: 19, rot: -4, delay: 0.03 },
+  { left: 59, bottom: -2, width: 25, rot: 10, delay: 0.1 },
+  { left: 65, bottom: 2, width: 14, rot: -12, delay: 0.05 },
+  { left: 70, bottom: 0, width: 20, rot: 6, delay: 0.14 },
+  { left: 75, bottom: 6, width: 16, rot: -18, delay: 0.02 },
+  { left: 79, bottom: -3, width: 22, rot: 14, delay: 0.08 },
+  { left: 84, bottom: 3, width: 15, rot: -8, delay: 0.12 },
+  { left: 89, bottom: -1, width: 13, rot: 16, delay: 0.04 },
+  { left: 93, bottom: 1, width: 21, rot: -10, delay: 0.09 },
+  { left: 6, bottom: 8, width: 12, rot: 20, delay: 0.15 },
+  { left: 61, bottom: 7, width: 12, rot: -20, delay: 0.06 },
+  { left: 96, bottom: 5, width: 14, rot: 8, delay: 0.11 },
 ]
 
 function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffExit = true }) {
@@ -497,7 +522,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           {FLAME_TONGUES.map((f, i) => (
             <img
               key={`tongue-${i}`}
-              src={f.img === 0 ? flameTongueImg : flameTongue2Img}
+              src={FLAME_IMGS[i % FLAME_IMGS.length]}
               alt=""
               className="puff-tongue-full"
               style={{
