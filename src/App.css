@@ -376,56 +376,60 @@ main {
 .task-check input:checked + .box::after { content: '\2713'; color: #fff; font-size: 0.8rem; }
 .task-check input:focus-visible + .box { box-shadow: 0 0 0 3px var(--red-tint); }
 
-/* ---------- "puff" effect: ember/smoke burst on rows cleared via Done ---------- */
-/* row-level fade/scale is now handled by Framer Motion's exit prop on TaskRow.
-   the burst finishes well within the row's own still-fully-opaque window
-   (row opacity stays at 1 until 50% through the exit), so it isn't dimmed
-   by its own fading parent. */
-.puff-burst {
+/* ---------- "puff" effect: the whole row burns off left-to-right ---------- */
+/* row-level opacity fade (Framer's exit prop) only kicks in at the very end,
+   after the burn sweep has already covered the row - so nothing here is
+   dimmed by its own fading parent while it's playing. */
+.puff-overlay {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  z-index: 3;
   pointer-events: none;
+  overflow: hidden;
+}
+.puff-char {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 8, 4, 0.94);
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: puffCharGrow 0.5s ease-in forwards;
+}
+@keyframes puffCharGrow {
+  to { transform: scaleX(1); }
+}
+.puff-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8%;
+  width: 30px;
+  background: linear-gradient(90deg, rgba(255, 138, 43, 0) 0%, #ff8a2b 40%, #ffe27a 62%, rgba(255, 138, 43, 0) 100%);
+  filter: blur(2px);
+  animation: puffEdgeMove 0.5s ease-in forwards;
+}
+@keyframes puffEdgeMove {
+  to { left: 102%; }
 }
 .puff-flash {
   position: absolute;
-  left: 50%;
+  left: 4%;
   top: 50%;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.2);
   background: radial-gradient(circle, #fffef0 0%, #ffd77a 45%, rgba(255, 150, 40, 0) 75%);
   opacity: 0;
-  animation: puffFlash 0.16s ease-out forwards;
+  animation: puffFlash 0.18s ease-out forwards;
 }
 @keyframes puffFlash {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
 }
-.puff-smoke {
+.puff-row-ember {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0.4);
-  background: radial-gradient(circle, rgba(180, 160, 150, 0.6) 0%, rgba(150, 130, 120, 0.3) 55%, rgba(150, 130, 120, 0) 80%);
-  opacity: 0;
-  animation: puffSmoke 0.26s ease forwards;
-}
-@keyframes puffSmoke {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-  25% { opacity: 0.95; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6); }
-}
-.puff-ember {
-  position: absolute;
-  left: 50%;
   top: 50%;
   width: 6px;
   height: 6px;
@@ -433,18 +437,12 @@ main {
   background: radial-gradient(circle, #fff2c9 0%, #ffb03d 55%, transparent 100%);
   box-shadow: 0 0 5px rgba(255, 150, 40, 0.7);
   opacity: 0;
-  --angle: calc(var(--i) * 60deg);
-  animation: puffEmber 0.26s ease-out forwards;
+  animation: puffRowEmber 0.4s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.045s);
 }
-@keyframes puffEmber {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(18px) scale(0.3);
-  }
+@keyframes puffRowEmber {
+  0% { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) translateY(-16px) scale(0.3); }
 }
 
 .task-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }

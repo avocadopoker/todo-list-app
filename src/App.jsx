@@ -454,13 +454,27 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
         puffExit
           ? {
               opacity: [1, 1, 0],
-              scale: [1, 1, 0.9],
-              transition: { duration: 0.55, times: [0, 0.5, 1], ease: 'easeOut' },
+              scale: [1, 1, 0.97],
+              transition: { duration: 0.6, times: [0, 0.82, 1], ease: 'easeOut' },
             }
           : { opacity: 0, transition: { duration: 0.15 } }
       }
       className={`task ${selected ? 'is-selected' : ''}`}
     >
+      {exiting && puffExit && (
+        <span className="puff-overlay" aria-hidden="true">
+          <span className="puff-char" />
+          <span className="puff-edge" />
+          <span className="puff-flash" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={i}
+              className="puff-row-ember"
+              style={{ '--i': i, left: `${6 + i * 12}%` }}
+            />
+          ))}
+        </span>
+      )}
       <span className="spine" aria-hidden="true" />
       <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input
@@ -471,15 +485,6 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
-        {exiting && puffExit && (
-          <span className="puff-burst" aria-hidden="true">
-            <span className="puff-flash" />
-            <span className="puff-smoke" />
-            {Array.from({ length: 6 }).map((_, i) => (
-              <span key={i} className="puff-ember" style={{ '--i': i }} />
-            ))}
-          </span>
-        )}
       </label>
       <div className="task-body">
         <span className="task-title">{task.title}</span>
