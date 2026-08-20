@@ -452,7 +452,11 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
       animate={{ opacity: 1, y: 0 }}
       exit={
         puffExit
-          ? { opacity: 0, scale: 0.92, transition: { duration: 0.45, ease: 'easeOut' } }
+          ? {
+              opacity: [1, 1, 0],
+              scale: [1, 1, 0.9],
+              transition: { duration: 0.55, times: [0, 0.5, 1], ease: 'easeOut' },
+            }
           : { opacity: 0, transition: { duration: 0.15 } }
       }
       className={`task ${selected ? 'is-selected' : ''}`}
@@ -469,6 +473,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
         <span className="box" />
         {exiting && puffExit && (
           <span className="puff-burst" aria-hidden="true">
+            <span className="puff-flash" />
             <span className="puff-smoke" />
             {Array.from({ length: 6 }).map((_, i) => (
               <span key={i} className="puff-ember" style={{ '--i': i }} />
