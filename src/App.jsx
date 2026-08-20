@@ -454,7 +454,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
       animate={{ opacity: 1, y: 0 }}
       exit={
         puffExit
-          ? { opacity: 0, scale: 0.97, transition: { duration: 2, ease: 'easeIn' } }
+          ? { opacity: 0, scale: 0.97, transition: { duration: 2.5, ease: 'easeIn' } }
           : { opacity: 0, transition: { duration: 0.15 } }
       }
       className={`task ${selected ? 'is-selected' : ''}`}
@@ -1300,7 +1300,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     setLastClearWasCelebration(willCelebrate)
     if (!willCelebrate) {
       setShowFlamethrower(true)
-      setTimeout(() => setShowFlamethrower(false), 2000)
+      setTimeout(() => setShowFlamethrower(false), 2500)
     }
 
     for (const t of chosen) {
@@ -1436,20 +1436,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
   return (
     <div className="tdl">
-      <AnimatePresence>
-        {showFlamethrower && (
-          <motion.img
-            src={flamethrowerSquirrelImg}
-            alt=""
-            aria-hidden="true"
-            className="flamethrower-overlay"
-            initial={{ opacity: 0, x: -20, scale: 0.85 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -10, scale: 0.9, transition: { duration: 0.25 } }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-          />
-        )}
-      </AnimatePresence>
       {viewablePeople && viewablePeople.length > 0 ? (
         <div className="viewer-row">
           {readOnly ? (
@@ -1555,6 +1541,21 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
           <button onClick={doneSelected}>🔥 Burn these tasks!</button>
         </div>
       )}
+
+      <AnimatePresence>
+        {showFlamethrower && (
+          <motion.img
+            src={flamethrowerSquirrelImg}
+            alt=""
+            aria-hidden="true"
+            className="flamethrower-overlay"
+            initial={{ opacity: 0, x: -20, scale: 0.85 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -10, scale: 0.9, transition: { duration: 0.3 } }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          />
+        )}
+      </AnimatePresence>
 
       {burst !== null && (
         <StreakBurst

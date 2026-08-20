@@ -56,7 +56,7 @@ button { font-family: inherit; cursor: pointer; }
   filter: drop-shadow(0 2px 6px rgba(229, 50, 42, 0.28));
 }
 .brand-lockup.small .ft-mark {
-  width: 32px;
+  width: 51px;
 }
 .ft-mark-flipped {
   transform: scaleX(-1);
@@ -334,17 +334,14 @@ main {
 .task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .tdl { position: relative; }
 .flamethrower-overlay {
-  position: absolute;
-  left: -46px;
-  top: 96px;
-  width: 168px;
+  position: fixed;
+  left: 8px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  width: 150px;
   height: auto;
-  z-index: 6;
+  z-index: 12;
   pointer-events: none;
   filter: drop-shadow(0 4px 10px rgba(229, 50, 42, 0.35));
-}
-@media (min-width: 480px) {
-  .flamethrower-overlay { left: -30px; }
 }
 
 .task {
@@ -423,16 +420,23 @@ main {
 .puff-tongue-full {
   position: absolute;
   bottom: 4%;
-  width: 15px;
-  height: 58%;
-  border-radius: 50% 50% 45% 45% / 72% 72% 28% 28%;
-  background: radial-gradient(ellipse at 50% 88%, #fff6d0 0%, #ffc457 32%, #ff8a2b 60%, rgba(255, 90, 20, 0) 100%);
-  animation: puffTongueFlicker 0.32s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 0.05s);
+  width: 17px;
+  height: 60%;
+  background: linear-gradient(180deg, #fff2b8 0%, #ffb020 30%, #ff5a12 62%, #c8280a 100%);
+  clip-path: polygon(
+    50% 0%, 66% 10%, 58% 20%, 82% 30%, 62% 38%,
+    88% 52%, 60% 55%, 78% 72%, 52% 68%, 62% 92%,
+    40% 74%, 30% 96%, 28% 72%, 8% 82%, 20% 58%,
+    0% 48%, 24% 40%, 6% 24%, 34% 26%, 26% 4%
+  );
+  animation: puffTongueFlicker 0.2s steps(2, end) infinite;
+  animation-delay: calc(var(--i) * 0.04s);
 }
 @keyframes puffTongueFlicker {
-  0%, 100% { transform: scaleY(1) skewX(0deg); opacity: 0.9; }
-  50% { transform: scaleY(1.28) skewX(-5deg); opacity: 1; }
+  0% { transform: scaleY(1) scaleX(1) rotate(0deg); opacity: 0.92; }
+  33% { transform: scaleY(1.32) scaleX(0.85) rotate(-4deg); opacity: 1; }
+  66% { transform: scaleY(0.88) scaleX(1.12) rotate(3deg); opacity: 0.96; }
+  100% { transform: scaleY(1.15) scaleX(0.92) rotate(-2deg); opacity: 1; }
 }
 .puff-smoke-wisp {
   position: absolute;
