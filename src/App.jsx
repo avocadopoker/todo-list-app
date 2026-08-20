@@ -8,6 +8,7 @@ import navListsIconImg from './assets/nav-lists-icon.png'
 import navSocialIconImg from './assets/nav-social-icon.png'
 import navSettingsIconImg from './assets/nav-settings-icon.png'
 import checkboxAcornImg from './assets/checkbox-acorn.png'
+import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -1258,6 +1259,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [burst, setBurst] = useState(null)
   const [burstLine, setBurstLine] = useState(null)
   const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
+  const [showFlamethrower, setShowFlamethrower] = useState(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1296,6 +1298,10 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     // no competing effects. AnimatePresence keeps each row mounted just long
     // enough to finish its exit transition before it's actually removed.
     setLastClearWasCelebration(willCelebrate)
+    if (!willCelebrate) {
+      setShowFlamethrower(true)
+      setTimeout(() => setShowFlamethrower(false), 2000)
+    }
 
     for (const t of chosen) {
       if (t.repeat_unit) {
@@ -1430,6 +1436,20 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
   return (
     <div className="tdl">
+      <AnimatePresence>
+        {showFlamethrower && (
+          <motion.img
+            src={flamethrowerSquirrelImg}
+            alt=""
+            aria-hidden="true"
+            className="flamethrower-overlay"
+            initial={{ opacity: 0, x: -20, scale: 0.85 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -10, scale: 0.9, transition: { duration: 0.25 } }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          />
+        )}
+      </AnimatePresence>
       {viewablePeople && viewablePeople.length > 0 ? (
         <div className="viewer-row">
           {readOnly ? (
