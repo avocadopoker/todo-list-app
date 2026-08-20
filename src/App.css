@@ -426,16 +426,14 @@ main {
   object-fit: contain;
   filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5));
   animation: puffTongueFlicker 0.22s steps(2, end) infinite;
-  animation-delay: calc(var(--i) * 0.04s);
 }
-.puff-tongue-full:nth-child(3n) { width: 24px; }
-.puff-tongue-full:nth-child(3n + 1) { width: 17px; filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5)) hue-rotate(-8deg); }
+.puff-tongue-full:nth-child(3n) { filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5)) hue-rotate(-8deg); }
 .puff-tongue-full:nth-child(2n) { filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5)) hue-rotate(6deg) saturate(1.15); }
 @keyframes puffTongueFlicker {
-  0% { transform: scaleY(1) scaleX(1) rotate(0deg); opacity: 0.92; }
-  33% { transform: scaleY(1.32) scaleX(0.85) rotate(-4deg); opacity: 1; }
-  66% { transform: scaleY(0.88) scaleX(1.12) rotate(3deg); opacity: 0.96; }
-  100% { transform: scaleY(1.15) scaleX(0.92) rotate(-2deg); opacity: 1; }
+  0% { transform: scaleY(1) scaleX(1) rotate(var(--rot, 0deg)); opacity: 0.92; }
+  33% { transform: scaleY(1.32) scaleX(0.85) rotate(calc(var(--rot, 0deg) - 4deg)); opacity: 1; }
+  66% { transform: scaleY(0.88) scaleX(1.12) rotate(calc(var(--rot, 0deg) + 3deg)); opacity: 0.96; }
+  100% { transform: scaleY(1.15) scaleX(0.92) rotate(calc(var(--rot, 0deg) - 2deg)); opacity: 1; }
 }
 .puff-smoke-wisp {
   position: absolute;
