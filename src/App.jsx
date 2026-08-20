@@ -975,13 +975,10 @@ function StreakBurst({ n, line, rewards, onEnd }) {
               <div key={r.id} className="burst-reward-line">
                 <span className="burst-reward-icon" aria-hidden="true">🎁</span>
                 {r.reached ? (
-                  r.visibility === 'visible' ? (
-                    <span>
-                      You earned <strong>{r.reward_text}</strong> from {r.giver_name}!
-                    </span>
-                  ) : (
-                    <span>You earned a reward from {r.giver_name}!</span>
-                  )
+                  <span>
+                    Congratz!! You are receiving this reward from {r.giver_name}:{' '}
+                    <strong>{r.reward_text}</strong>
+                  </span>
                 ) : r.visibility === 'visible' ? (
                   <span>
                     {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
