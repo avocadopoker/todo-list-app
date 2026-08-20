@@ -10,6 +10,7 @@ import navSettingsIconImg from './assets/nav-settings-icon.png'
 import checkboxAcornImg from './assets/checkbox-acorn.png'
 import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
 import burnButtonSquirrelImg from './assets/burn-button-squirrel.png'
+import burnButtonPressedImg from './assets/burn-button-pressed.png'
 import flameTongueImg from './assets/flame-tongue.png'
 import './App.css'
 
@@ -1266,6 +1267,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
   const [showFlamethrower, setShowFlamethrower] = useState(false)
   const [flamethrowerPos, setFlamethrowerPos] = useState(null)
+  const [burnJustPressed, setBurnJustPressed] = useState(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1306,15 +1308,16 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     setLastClearWasCelebration(willCelebrate)
     if (!willCelebrate && chosen.length > 0) {
       const rowEl = document.querySelector(`[data-task-id="${chosen[0].id}"]`)
-      const anchorEl = rowEl?.querySelector('.task-check') || rowEl
-      if (anchorEl) {
-        const rect = anchorEl.getBoundingClientRect()
-        setFlamethrowerPos({ top: rect.top + rect.height / 2, left: rect.left })
+      if (rowEl) {
+        const rect = rowEl.getBoundingClientRect()
+        setFlamethrowerPos({ top: rect.top + rect.height / 2, right: rect.right })
       } else {
         setFlamethrowerPos(null)
       }
       setShowFlamethrower(true)
+      setBurnJustPressed(true)
       setTimeout(() => setShowFlamethrower(false), 2500)
+      setTimeout(() => setBurnJustPressed(false), 4500)
     }
 
     for (const t of chosen) {
@@ -1550,10 +1553,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         </button>
       )}
 
-      {!readOnly && selected.size > 0 && (
+      {!readOnly && (selected.size > 0 || burnJustPressed) && (
         <div className="burn-btn-wrap">
           <button className="burn-btn" onClick={doneSelected} aria-label="Burn these tasks">
-            <img src={burnButtonSquirrelImg} alt="" className="burn-btn-img" />
+            <img
+              src={burnJustPressed ? burnButtonPressedImg : burnButtonSquirrelImg}
+              alt=""
+              className={burnJustPressed ? 'burn-btn-img burn-btn-img-pressed' : 'burn-btn-img'}
+            />
           </button>
         </div>
       )}
@@ -1569,13 +1576,13 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
               flamethrowerPos
                 ? {
                     top: flamethrowerPos.top,
-                    left: flamethrowerPos.left - 150 + 26,
+                    left: flamethrowerPos.right - 150 - 10,
                   }
                 : undefined
             }
-            initial={{ opacity: 0, x: -20, scale: 0.85 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -10, scale: 0.9, transition: { duration: 0.3 } }}
+            initial={{ opacity: 0, x: 20, y: '-50%', scale: 0.85, scaleX: -1 }}
+            animate={{ opacity: 1, x: 0, y: '-50%', scale: 1, scaleX: -1 }}
+            exit={{ opacity: 0, x: 10, y: '-50%', scale: 0.9, scaleX: -1, transition: { duration: 0.3 } }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
           />
         )}

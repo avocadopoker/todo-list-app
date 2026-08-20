@@ -337,7 +337,6 @@ main {
   position: fixed;
   top: 50%;
   left: 8px;
-  transform: translateY(-50%);
   width: 150px;
   height: auto;
   z-index: 12;
@@ -973,6 +972,13 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   height: auto;
   background: none;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
+}
+.burn-btn-img-pressed {
+  animation: burnBtnFadeOut 2s ease-out 2.5s forwards;
+}
+@keyframes burnBtnFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 /* ---------- day separators (7 / 30 day views) ---------- */
