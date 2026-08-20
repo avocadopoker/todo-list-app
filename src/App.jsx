@@ -453,36 +453,34 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
       animate={{ opacity: 1, y: 0 }}
       exit={
         puffExit
-          ? {
-              opacity: [1, 1, 0],
-              scale: [1, 1, 0.97],
-              transition: { duration: 0.6, times: [0, 0.82, 1], ease: 'easeOut' },
-            }
+          ? { opacity: 0, scale: 0.97, transition: { duration: 2, ease: 'easeIn' } }
           : { opacity: 0, transition: { duration: 0.15 } }
       }
       className={`task ${selected ? 'is-selected' : ''}`}
     >
       {exiting && puffExit && (
         <span className="puff-overlay" aria-hidden="true">
-          <span className="puff-char" />
-          <span className="puff-flame-front">
-            <span className="puff-tongue puff-tongue-1" />
-            <span className="puff-tongue puff-tongue-2" />
-            <span className="puff-tongue puff-tongue-3" />
-          </span>
+          <span className="puff-wash" />
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span
+              key={`tongue-${i}`}
+              className="puff-tongue-full"
+              style={{ '--i': i, left: `${8 + i * 13}%` }}
+            />
+          ))}
           <span className="puff-flash" />
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 7 }).map((_, i) => (
             <span
               key={`smoke-${i}`}
               className="puff-smoke-wisp"
-              style={{ '--i': i, left: `${8 + i * 15}%` }}
+              style={{ '--i': i, left: `${6 + i * 13}%` }}
             />
           ))}
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 10 }).map((_, i) => (
             <span
               key={`ember-${i}`}
               className="puff-row-ember"
-              style={{ '--i': i, left: `${6 + i * 12}%` }}
+              style={{ '--i': i, left: `${4 + i * 10}%` }}
             />
           ))}
         </span>
