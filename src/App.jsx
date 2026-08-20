@@ -1689,10 +1689,22 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
                   }
                 : undefined
             }
-            initial={{ opacity: 0, x: 20, y: '-50%', scale: 0.85, scaleX: -1 }}
-            animate={{ opacity: 1, x: 0, y: '-50%', scale: 1, scaleX: -1 }}
-            exit={{ opacity: 0, x: 10, y: '-50%', scale: 0.9, scaleX: -1, transition: { duration: 0.3 } }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
+            initial={{ opacity: 0, x: 20, y: '-50%', scale: 0.85, scaleX: -1, rotate: 0 }}
+            animate={{
+              opacity: 1,
+              y: '-50%',
+              scale: 1,
+              scaleX: -1,
+              x: [8, -10, 6, -14, 10, -6, 8],
+              rotate: [4, -9, 7, -13, 5, -7, 4],
+            }}
+            exit={{ opacity: 0, x: 10, y: '-50%', scale: 0.9, scaleX: -1, rotate: 0, transition: { duration: 0.3 } }}
+            transition={{
+              opacity: { duration: 0.3, ease: 'easeOut' },
+              scale: { duration: 0.3, ease: 'easeOut' },
+              x: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+              rotate: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+            }}
           />
         )}
       </AnimatePresence>
