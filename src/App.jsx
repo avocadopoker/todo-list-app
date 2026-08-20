@@ -465,11 +465,22 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
       {exiting && puffExit && (
         <span className="puff-overlay" aria-hidden="true">
           <span className="puff-char" />
-          <span className="puff-edge" />
+          <span className="puff-flame-front">
+            <span className="puff-tongue puff-tongue-1" />
+            <span className="puff-tongue puff-tongue-2" />
+            <span className="puff-tongue puff-tongue-3" />
+          </span>
           <span className="puff-flash" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <span
+              key={`smoke-${i}`}
+              className="puff-smoke-wisp"
+              style={{ '--i': i, left: `${8 + i * 15}%` }}
+            />
+          ))}
           {Array.from({ length: 8 }).map((_, i) => (
             <span
-              key={i}
+              key={`ember-${i}`}
               className="puff-row-ember"
               style={{ '--i': i, left: `${6 + i * 12}%` }}
             />

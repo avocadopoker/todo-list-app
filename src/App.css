@@ -394,7 +394,13 @@ main {
 .puff-char {
   position: absolute;
   inset: 0;
-  background: rgba(15, 8, 4, 0.94);
+  background: linear-gradient(
+    90deg,
+    rgba(10, 5, 3, 0.97) 0%,
+    rgba(45, 16, 8, 0.93) 55%,
+    rgba(150, 48, 12, 0.6) 85%,
+    rgba(255, 130, 30, 0) 100%
+  );
   transform-origin: left center;
   transform: scaleX(0);
   animation: puffCharGrow 0.5s ease-in forwards;
@@ -402,18 +408,49 @@ main {
 @keyframes puffCharGrow {
   to { transform: scaleX(1); }
 }
-.puff-edge {
+.puff-flame-front {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -8%;
-  width: 30px;
-  background: linear-gradient(90deg, rgba(255, 138, 43, 0) 0%, #ff8a2b 40%, #ffe27a 62%, rgba(255, 138, 43, 0) 100%);
-  filter: blur(2px);
+  left: -12%;
+  width: 44px;
   animation: puffEdgeMove 0.5s ease-in forwards;
 }
 @keyframes puffEdgeMove {
-  to { left: 102%; }
+  to { left: 100%; }
+}
+.puff-tongue {
+  position: absolute;
+  bottom: 10%;
+  width: 16px;
+  height: 62%;
+  border-radius: 50% 50% 45% 45% / 72% 72% 28% 28%;
+  background: radial-gradient(ellipse at 50% 88%, #fff6d0 0%, #ffc457 32%, #ff8a2b 60%, rgba(255, 90, 20, 0) 100%);
+  animation: puffTongueFlicker 0.3s ease-in-out infinite;
+}
+.puff-tongue-1 { left: 2px; height: 55%; animation-delay: 0s; }
+.puff-tongue-2 { left: 13px; height: 72%; animation-delay: 0.09s; }
+.puff-tongue-3 { left: 24px; height: 46%; animation-delay: 0.17s; }
+@keyframes puffTongueFlicker {
+  0%, 100% { transform: scaleY(1) skewX(0deg); opacity: 0.92; }
+  50% { transform: scaleY(1.22) skewX(-5deg); opacity: 1; }
+}
+.puff-smoke-wisp {
+  position: absolute;
+  top: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(125, 115, 110, 0.55) 0%, rgba(95, 87, 83, 0.28) 55%, rgba(95, 87, 83, 0) 80%);
+  filter: blur(1px);
+  opacity: 0;
+  animation: puffSmokeWisp 0.55s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.06s);
+}
+@keyframes puffSmokeWisp {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-26px) scale(1.9); }
 }
 .puff-flash {
   position: absolute;
