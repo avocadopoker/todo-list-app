@@ -245,6 +245,10 @@ input:focus {
   justify-content: center;
   padding: 4px 10px;
 }
+.screen-tabs button.nav-icon-btn.active {
+  background: none;
+  color: inherit;
+}
 .nav-icon-img {
   width: 51px;
   height: 51px;

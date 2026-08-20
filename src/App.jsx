@@ -4,6 +4,7 @@ import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
 import navTodayIconImg from './assets/nav-today-icon.png'
 import navListsIconImg from './assets/nav-lists-icon.png'
+import navSocialIconImg from './assets/nav-social-icon.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -3791,10 +3792,11 @@ function Shell({ session }) {
             <img src={navListsIconImg} alt="" className="nav-icon-img" />
           </button>
           <button
-            className={screen === 'social' ? 'active' : ''}
+            className={screen === 'social' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('social')}
+            aria-label="Social"
           >
-            Social
+            <img src={navSocialIconImg} alt="" className="nav-icon-img" />
           </button>
           <div className="nav-dropdown" ref={setupMenuRef}>
             <button
