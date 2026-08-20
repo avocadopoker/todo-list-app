@@ -250,23 +250,17 @@ input:focus {
   background: none;
   color: inherit;
 }
-.screen-tabs button.nav-icon-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--flame-grad);
-}
 .nav-icon-img {
   width: 51px;
   height: 51px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.3));
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+.screen-tabs button.nav-icon-btn.active .nav-icon-img {
+  opacity: 1;
 }
 
 .nav-dropdown { position: relative; }
