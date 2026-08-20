@@ -369,6 +369,64 @@ main {
 .task-check input:checked + .box::after { content: '\2713'; color: #fff; font-size: 0.8rem; }
 .task-check input:focus-visible + .box { box-shadow: 0 0 0 3px var(--red-tint); }
 
+/* ---------- "puff" effect: rows burst into embers when cleared via Done ---------- */
+.task-puffing {
+  pointer-events: none;
+  animation: rowPuff 0.45s ease forwards;
+}
+@keyframes rowPuff {
+  0% { opacity: 1; transform: scale(1); }
+  55% { opacity: 0.5; transform: scale(0.97); }
+  100% { opacity: 0; transform: scale(0.92); }
+}
+.puff-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.puff-smoke {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.4);
+  background: radial-gradient(circle, rgba(160, 160, 160, 0.55) 0%, rgba(160, 160, 160, 0.25) 55%, rgba(160, 160, 160, 0) 80%);
+  opacity: 0;
+  animation: puffSmoke 0.45s ease forwards;
+}
+@keyframes puffSmoke {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.2); }
+}
+.puff-ember {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff2c9 0%, #ffb03d 55%, transparent 100%);
+  opacity: 0;
+  --angle: calc(var(--i) * 60deg);
+  animation: puffEmber 0.45s ease-out forwards;
+}
+@keyframes puffEmber {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(22px) scale(0.3);
+  }
+}
+
 .task-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .task-title { font-weight: 500; font-size: 1rem; }
 .task-meta {

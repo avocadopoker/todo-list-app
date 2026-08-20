@@ -437,11 +437,11 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly }) {
+function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffing }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
   return (
-    <li className={`task ${selected ? 'is-selected' : ''}`}>
+    <li className={`task ${selected ? 'is-selected' : ''} ${puffing ? 'task-puffing' : ''}`}>
       <span className="spine" aria-hidden="true" />
       <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input
@@ -452,6 +452,14 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
+        {puffing && (
+          <span className="puff-burst" aria-hidden="true">
+            <span className="puff-smoke" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span key={i} className="puff-ember" style={{ '--i': i }} />
+            ))}
+          </span>
+        )}
       </label>
       <div className="task-body">
         <span className="task-title">{task.title}</span>
@@ -1206,6 +1214,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
   const [burstLine, setBurstLine] = useState(null)
+  const [puffingIds, setPuffingIds] = useState(new Set())
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1230,11 +1239,22 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   async function doneSelected() {
     const t0 = today()
     const chosen = scopedTasks.filter((t) => selected.has(t.id))
+    const chosenIds = new Set(chosen.map((t) => t.id))
 
     // required Today items (dated <= today) that are NOT being cleared now
     const requiredToday = scopedTasks.filter((t) => t.due_date && t.due_date <= t0)
     const clearedNow = requiredToday.filter((t) => selected.has(t.id))
     const remaining = requiredToday.length - clearedNow.length
+    const willCelebrate =
+      requiredToday.length > 0 && remaining === 0 && profile && profile.clear_last !== t0
+
+    // if this clear isn't emptying the whole day, give the rows a quick
+    // "puff" beat before they actually vanish. If it IS emptying the day,
+    // skip straight to the celebration screen instead - no competing effects.
+    if (!willCelebrate) {
+      setPuffingIds(chosenIds)
+      await new Promise((resolve) => setTimeout(resolve, 450))
+    }
 
     for (const t of chosen) {
       if (t.repeat_unit) {
@@ -1268,32 +1288,31 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     }
 
     // daily "clear the list" streak: fired when this action empties Today
-    if (requiredToday.length > 0 && remaining === 0 && profile) {
-      if (profile.clear_last !== t0) {
-        const newStreak = (profile.clear_streak || 0) + 1
-        let newProgress = (profile.token_progress || 0) + 1
-        let newTokens = profile.streak_tokens || 0
-        if (newProgress >= 10) {
-          newTokens += 1
-          newProgress = 0
-        }
-        await supabase
-          .from('profiles')
-          .update({
-            clear_streak: newStreak,
-            clear_last: t0,
-            token_progress: newProgress,
-            streak_tokens: newTokens,
-            streak_checked_through: t0,
-          })
-          .eq('id', myId)
-        const line = await pickAndAdvanceReward(profile, rewardLines, myId)
-        setBurstLine(line)
-        setBurst(newStreak)
+    if (willCelebrate) {
+      const newStreak = (profile.clear_streak || 0) + 1
+      let newProgress = (profile.token_progress || 0) + 1
+      let newTokens = profile.streak_tokens || 0
+      if (newProgress >= 10) {
+        newTokens += 1
+        newProgress = 0
       }
+      await supabase
+        .from('profiles')
+        .update({
+          clear_streak: newStreak,
+          clear_last: t0,
+          token_progress: newProgress,
+          streak_tokens: newTokens,
+          streak_checked_through: t0,
+        })
+        .eq('id', myId)
+      const line = await pickAndAdvanceReward(profile, rewardLines, myId)
+      setBurstLine(line)
+      setBurst(newStreak)
     }
 
     setSelected(new Set())
+    setPuffingIds(new Set())
     refresh()
   }
 
@@ -1361,6 +1380,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
       onEdit={readOnly ? undefined : setEditing}
       readOnly={readOnly}
+      puffing={puffingIds.has(t.id)}
     />
   )
 
