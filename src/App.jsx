@@ -9,6 +9,8 @@ import navSocialIconImg from './assets/nav-social-icon.png'
 import navSettingsIconImg from './assets/nav-settings-icon.png'
 import checkboxAcornImg from './assets/checkbox-acorn.png'
 import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
+import burnButtonSquirrelImg from './assets/burn-button-squirrel.png'
+import flameTongueImg from './assets/flame-tongue.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -458,15 +460,18 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           : { opacity: 0, transition: { duration: 0.15 } }
       }
       className={`task ${selected ? 'is-selected' : ''}`}
+      data-task-id={task.id}
     >
       {exiting && puffExit && (
         <span className="puff-overlay" aria-hidden="true">
           <span className="puff-wash" />
           {Array.from({ length: 7 }).map((_, i) => (
-            <span
+            <img
               key={`tongue-${i}`}
+              src={flameTongueImg}
+              alt=""
               className="puff-tongue-full"
-              style={{ '--i': i, left: `${8 + i * 13}%` }}
+              style={{ '--i': i, left: `${6 + i * 13}%` }}
             />
           ))}
           <span className="puff-flash" />
@@ -1260,6 +1265,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [burstLine, setBurstLine] = useState(null)
   const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
   const [showFlamethrower, setShowFlamethrower] = useState(false)
+  const [flamethrowerPos, setFlamethrowerPos] = useState(null)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1298,7 +1304,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     // no competing effects. AnimatePresence keeps each row mounted just long
     // enough to finish its exit transition before it's actually removed.
     setLastClearWasCelebration(willCelebrate)
-    if (!willCelebrate) {
+    if (!willCelebrate && chosen.length > 0) {
+      const rowEl = document.querySelector(`[data-task-id="${chosen[0].id}"]`)
+      if (rowEl) {
+        const rect = rowEl.getBoundingClientRect()
+        setFlamethrowerPos({ top: rect.top + rect.height / 2, left: rect.left })
+      } else {
+        setFlamethrowerPos(null)
+      }
       setShowFlamethrower(true)
       setTimeout(() => setShowFlamethrower(false), 2500)
     }
@@ -1538,7 +1551,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
       {!readOnly && selected.size > 0 && (
         <div className="delete-bar done-bar">
-          <button onClick={doneSelected}>🔥 Burn these tasks!</button>
+          <button className="burn-btn" onClick={doneSelected} aria-label="Burn these tasks">
+            <img src={burnButtonSquirrelImg} alt="" className="burn-btn-img" />
+          </button>
         </div>
       )}
 
@@ -1549,6 +1564,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
             alt=""
             aria-hidden="true"
             className="flamethrower-overlay"
+            style={
+              flamethrowerPos
+                ? {
+                    top: flamethrowerPos.top,
+                    left: flamethrowerPos.left - 150 + 26,
+                  }
+                : undefined
+            }
             initial={{ opacity: 0, x: -20, scale: 0.85 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -10, scale: 0.9, transition: { duration: 0.3 } }}
