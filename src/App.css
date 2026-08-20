@@ -349,9 +349,7 @@ main {
   border-radius: var(--radius);
   padding: 14px 16px 14px 20px;
   overflow: hidden;
-  animation: rise 0.2s ease both;
 }
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
 .spine {
   position: absolute;
@@ -378,16 +376,8 @@ main {
 .task-check input:checked + .box::after { content: '\2713'; color: #fff; font-size: 0.8rem; }
 .task-check input:focus-visible + .box { box-shadow: 0 0 0 3px var(--red-tint); }
 
-/* ---------- "puff" effect: rows burst into embers when cleared via Done ---------- */
-.task-puffing {
-  pointer-events: none;
-  animation: rowPuff 0.45s ease forwards;
-}
-@keyframes rowPuff {
-  0% { opacity: 1; transform: scale(1); }
-  55% { opacity: 0.5; transform: scale(0.97); }
-  100% { opacity: 0; transform: scale(0.92); }
-}
+/* ---------- "puff" effect: ember/smoke burst on rows cleared via Done ---------- */
+/* row-level fade/scale is now handled by Framer Motion's exit prop on TaskRow */
 .puff-burst {
   position: absolute;
   left: 50%;

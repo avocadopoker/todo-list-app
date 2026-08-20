@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence, useIsPresent } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
@@ -439,11 +440,23 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffing }) {
+function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffExit = true }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
+  const isPresent = useIsPresent()
+  const exiting = !isPresent
   return (
-    <li className={`task ${selected ? 'is-selected' : ''} ${puffing ? 'task-puffing' : ''}`}>
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={
+        puffExit
+          ? { opacity: 0, scale: 0.92, transition: { duration: 0.45, ease: 'easeOut' } }
+          : { opacity: 0, transition: { duration: 0.15 } }
+      }
+      className={`task ${selected ? 'is-selected' : ''}`}
+    >
       <span className="spine" aria-hidden="true" />
       <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input
@@ -454,7 +467,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
-        {puffing && (
+        {exiting && puffExit && (
           <span className="puff-burst" aria-hidden="true">
             <span className="puff-smoke" />
             {Array.from({ length: 6 }).map((_, i) => (
@@ -520,7 +533,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           </svg>
         </button>
       )}
-    </li>
+    </motion.li>
   )
 }
 
@@ -1216,7 +1229,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
   const [burstLine, setBurstLine] = useState(null)
-  const [puffingIds, setPuffingIds] = useState(new Set())
+  const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1241,7 +1254,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   async function doneSelected() {
     const t0 = today()
     const chosen = scopedTasks.filter((t) => selected.has(t.id))
-    const chosenIds = new Set(chosen.map((t) => t.id))
 
     // required Today items (dated <= today) that are NOT being cleared now
     const requiredToday = scopedTasks.filter((t) => t.due_date && t.due_date <= t0)
@@ -1250,13 +1262,12 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     const willCelebrate =
       requiredToday.length > 0 && remaining === 0 && profile && profile.clear_last !== t0
 
-    // if this clear isn't emptying the whole day, give the rows a quick
-    // "puff" beat before they actually vanish. If it IS emptying the day,
-    // skip straight to the celebration screen instead - no competing effects.
-    if (!willCelebrate) {
-      setPuffingIds(chosenIds)
-      await new Promise((resolve) => setTimeout(resolve, 450))
-    }
+    // If this clear isn't emptying the whole day, the rows play their "puff"
+    // exit animation (handled by AnimatePresence/TaskRow). If it IS emptying
+    // the day, skip the flourish entirely and go straight to celebration -
+    // no competing effects. AnimatePresence keeps each row mounted just long
+    // enough to finish its exit transition before it's actually removed.
+    setLastClearWasCelebration(willCelebrate)
 
     for (const t of chosen) {
       if (t.repeat_unit) {
@@ -1314,7 +1325,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     }
 
     setSelected(new Set())
-    setPuffingIds(new Set())
     refresh()
   }
 
@@ -1382,7 +1392,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
       onEdit={readOnly ? undefined : setEditing}
       readOnly={readOnly}
-      puffing={puffingIds.has(t.id)}
+      puffExit={!lastClearWasCelebration}
     />
   )
 
@@ -1474,12 +1484,16 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
           {dayGroups.map((g) => (
             <div key={g.date} className="day-group">
               <div className="day-sep">{g.label}</div>
-              <ul className="task-list">{g.tasks.map(renderRow)}</ul>
+              <ul className="task-list">
+                <AnimatePresence initial={false}>{g.tasks.map(renderRow)}</AnimatePresence>
+              </ul>
             </div>
           ))}
         </div>
       ) : (
-        <ul className="task-list">{visible.map(renderRow)}</ul>
+        <ul className="task-list">
+          <AnimatePresence initial={false}>{visible.map(renderRow)}</AnimatePresence>
+        </ul>
       )}
 
       {!readOnly && (
