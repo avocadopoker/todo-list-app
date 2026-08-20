@@ -1523,7 +1523,6 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
       {!readOnly && selected.size > 0 && (
         <div className="delete-bar done-bar">
-          <span>{selected.size} selected</span>
           <button onClick={doneSelected}>🔥 Burn these tasks!</button>
         </div>
       )}
@@ -1567,15 +1566,6 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
     setText('')
     setBusy(false)
     setAdding(false)
-    refresh()
-  }
-
-  async function toggleItem(item) {
-    if (readOnly) return
-    await supabase
-      .from('list_items')
-      .update({ is_complete: !item.is_complete })
-      .eq('id', item.id)
     refresh()
   }
 
@@ -1624,18 +1614,8 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
       ) : (
         <ul className="task-list">
           {sorted.map((item, i) => (
-            <li key={item.id} className={`task ${item.is_complete ? 'idea-done' : ''}`}>
+            <li key={item.id} className="task">
               <span className="spine" aria-hidden="true" />
-              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={item.is_complete}
-                  disabled={readOnly}
-                  onChange={() => toggleItem(item)}
-                  aria-label={`Mark ${item.title} done`}
-                />
-                <span className="box" />
-              </label>
               <div className="task-body">
                 {editingId === item.id ? (
                   <input
