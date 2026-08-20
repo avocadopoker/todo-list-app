@@ -5,6 +5,7 @@ import firetailLogoImg from './assets/firetail-logo.png'
 import navTodayIconImg from './assets/nav-today-icon.png'
 import navListsIconImg from './assets/nav-lists-icon.png'
 import navSocialIconImg from './assets/nav-social-icon.png'
+import navSettingsIconImg from './assets/nav-settings-icon.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -3800,18 +3801,11 @@ function Shell({ session }) {
           </button>
           <div className="nav-dropdown" ref={setupMenuRef}>
             <button
-              className={`nav-gear-btn${screen === 'setup' || screen === 'habits' || screen === 'goals' ? ' active' : ''}`}
+              className={`nav-gear-btn nav-icon-btn${screen === 'setup' || screen === 'habits' || screen === 'goals' ? ' active' : ''}`}
               onClick={() => setSetupMenuOpen((o) => !o)}
               aria-label="Setup menu"
             >
-              <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true">
-                <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="9" cy="6" r="2.2" fill="currentColor" />
-                <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="16" cy="12" r="2.2" fill="currentColor" />
-                <line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="11" cy="18" r="2.2" fill="currentColor" />
-              </svg>
+              <img src={navSettingsIconImg} alt="" className="nav-icon-img" />
             </button>
             {setupMenuOpen && (
               <div className="nav-dropdown-menu">

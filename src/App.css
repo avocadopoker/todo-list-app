@@ -228,7 +228,7 @@ input:focus {
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.screen-tabs { display: flex; gap: 4px; }
+.screen-tabs { display: flex; align-items: center; gap: 0; }
 .screen-tabs button {
   border: none;
   background: none;
@@ -243,11 +243,23 @@ input:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 4px 3px;
+  position: relative;
 }
 .screen-tabs button.nav-icon-btn.active {
   background: none;
   color: inherit;
+}
+.screen-tabs button.nav-icon-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--flame-grad);
 }
 .nav-icon-img {
   width: 51px;
@@ -260,17 +272,10 @@ input:focus {
 .nav-dropdown { position: relative; }
 .nav-gear-btn {
   box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  padding: 0;
-  border-radius: 10px;
   color: var(--muted);
   flex-shrink: 0;
 }
-.nav-gear-btn.active { background: var(--ink); color: #fff; }
+.nav-gear-btn.active { background: none; color: inherit; }
 .nav-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
