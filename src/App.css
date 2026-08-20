@@ -944,22 +944,34 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   margin-left: 4px;
 }
 
-/* Burn button: an image button (squirrel pressing a detonator) replaces the
-   old text button entirely */
-.done-bar { padding: 0; background: none; box-shadow: none; }
+/* Burn button: an image button (squirrel pressing a detonator), a fully
+   standalone wrapper so it can't inherit any pill/background styling from
+   elsewhere on the page */
+.burn-btn-wrap {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 11;
+  animation: slideUp 0.2s ease both;
+}
 .burn-btn {
+  display: block;
   background: none;
   border: none;
   padding: 0;
-  border-radius: 16px;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
   cursor: pointer;
   transition: transform 0.1s ease;
 }
 .burn-btn:active { transform: scale(0.94); }
 .burn-btn-img {
   display: block;
-  width: 84px;
+  width: 76px;
   height: auto;
+  background: none;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 

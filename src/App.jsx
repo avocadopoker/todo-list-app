@@ -1306,8 +1306,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     setLastClearWasCelebration(willCelebrate)
     if (!willCelebrate && chosen.length > 0) {
       const rowEl = document.querySelector(`[data-task-id="${chosen[0].id}"]`)
-      if (rowEl) {
-        const rect = rowEl.getBoundingClientRect()
+      const anchorEl = rowEl?.querySelector('.task-check') || rowEl
+      if (anchorEl) {
+        const rect = anchorEl.getBoundingClientRect()
         setFlamethrowerPos({ top: rect.top + rect.height / 2, left: rect.left })
       } else {
         setFlamethrowerPos(null)
@@ -1550,7 +1551,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       )}
 
       {!readOnly && selected.size > 0 && (
-        <div className="delete-bar done-bar">
+        <div className="burn-btn-wrap">
           <button className="burn-btn" onClick={doneSelected} aria-label="Burn these tasks">
             <img src={burnButtonSquirrelImg} alt="" className="burn-btn-img" />
           </button>
