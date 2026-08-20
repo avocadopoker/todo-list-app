@@ -7,6 +7,7 @@ import navTodayIconImg from './assets/nav-today-icon.png'
 import navListsIconImg from './assets/nav-lists-icon.png'
 import navSocialIconImg from './assets/nav-social-icon.png'
 import navSettingsIconImg from './assets/nav-settings-icon.png'
+import checkboxAcornImg from './assets/checkbox-acorn.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -485,6 +486,14 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
+        {!!selected && (
+          <img
+            src={checkboxAcornImg}
+            alt=""
+            className="task-check-acorn"
+            aria-hidden="true"
+          />
+        )}
       </label>
       <div className="task-body">
         <span className="task-title">{task.title}</span>
@@ -1515,7 +1524,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       {!readOnly && selected.size > 0 && (
         <div className="delete-bar done-bar">
           <span>{selected.size} selected</span>
-          <button onClick={doneSelected}>{selected.size} Done</button>
+          <button onClick={doneSelected}>🔥 Burn these tasks!</button>
         </div>
       )}
 

@@ -372,9 +372,19 @@ main {
   justify-content: center;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.task-check input:checked + .box { background: var(--green); border-color: var(--green); }
-.task-check input:checked + .box::after { content: '\2713'; color: #fff; font-size: 0.8rem; }
+.task-check input:checked + .box { border-color: transparent; background: transparent; }
 .task-check input:focus-visible + .box { box-shadow: 0 0 0 3px var(--red-tint); }
+.task-check-acorn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.35));
+}
 
 /* ---------- "puff" effect: the whole row burns off left-to-right ---------- */
 /* row-level opacity fade (Framer's exit prop) only kicks in at the very end,
