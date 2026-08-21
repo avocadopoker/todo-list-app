@@ -1214,8 +1214,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [burst, setBurst] = useState(null)
   const [burstLine, setBurstLine] = useState(null)
   const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
-  const [showFlamethrower, setShowFlamethrower] = useState(false)
-  const [flamethrowerPos, setFlamethrowerPos] = useState(null)
+  const [flamethrowerPositions, setFlamethrowerPositions] = useState([])
   const [burnJustPressed, setBurnJustPressed] = useState(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
@@ -1256,16 +1255,17 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     // enough to finish its exit transition before it's actually removed.
     setLastClearWasCelebration(willCelebrate)
     if (!willCelebrate && chosen.length > 0) {
-      const rowEl = document.querySelector(`[data-task-id="${chosen[0].id}"]`)
-      if (rowEl) {
-        const rect = rowEl.getBoundingClientRect()
-        setFlamethrowerPos({ top: rect.top + rect.height / 2, right: rect.right })
-      } else {
-        setFlamethrowerPos(null)
-      }
-      setShowFlamethrower(true)
+      const positions = chosen
+        .map((t) => {
+          const rowEl = document.querySelector(`[data-task-id="${t.id}"]`)
+          if (!rowEl) return null
+          const rect = rowEl.getBoundingClientRect()
+          return { id: t.id, top: rect.top + rect.height / 2, right: rect.right }
+        })
+        .filter(Boolean)
+      setFlamethrowerPositions(positions)
       setBurnJustPressed(true)
-      setTimeout(() => setShowFlamethrower(false), 2500)
+      setTimeout(() => setFlamethrowerPositions([]), 2500)
       setTimeout(() => setBurnJustPressed(false), 4500)
     }
 
@@ -1515,20 +1515,17 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       )}
 
       <AnimatePresence>
-        {showFlamethrower && (
+        {flamethrowerPositions.map((pos) => (
           <motion.img
+            key={pos.id}
             src={flamethrowerSquirrelImg}
             alt=""
             aria-hidden="true"
             className="flamethrower-overlay"
-            style={
-              flamethrowerPos
-                ? {
-                    top: flamethrowerPos.top,
-                    left: flamethrowerPos.right - 150 - 10,
-                  }
-                : undefined
-            }
+            style={{
+              top: pos.top,
+              left: pos.right - 150 - 10,
+            }}
             initial={{ opacity: 0, x: 20, y: '-50%', scale: 0.85, scaleX: -1, rotate: 0 }}
             animate={{
               opacity: 1,
@@ -1546,7 +1543,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
               rotate: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
             }}
           />
-        )}
+        ))}
       </AnimatePresence>
 
       {burst !== null && (
