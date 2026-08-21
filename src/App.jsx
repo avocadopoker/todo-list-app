@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence, useIsPresent } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import squirrelHighFiveImg from './assets/squirrel-highfive.png'
 import firetailLogoImg from './assets/firetail-logo.png'
@@ -431,8 +431,6 @@ function ResetPassword({ onDone }) {
 function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffExit = true }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
-  const isPresent = useIsPresent()
-  const exiting = !isPresent
   return (
     <motion.li
       layout
@@ -446,11 +444,6 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
       className={`task ${selected ? 'is-selected' : ''}`}
       data-task-id={task.id}
     >
-      {exiting && puffExit && (
-        <span className="puff-overlay" aria-hidden="true">
-          <span className="puff-amber" />
-        </span>
-      )}
       <span className="spine" aria-hidden="true" />
       <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input

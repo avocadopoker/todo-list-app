@@ -391,31 +391,6 @@ main {
   filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.35));
 }
 
-/* ---------- "puff" effect: single amber tint over the whole row, fading
-   out together with it (no per-flame images - kept deliberately cheap) ---------- */
-.puff-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  overflow: hidden;
-}
-.puff-amber {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 100% 100% at 50% 50%,
-    rgba(255, 150, 40, 0.6) 0%,
-    rgba(255, 90, 20, 0.45) 55%,
-    rgba(255, 90, 20, 0.2) 100%
-  );
-  animation: puffAmberFlicker 0.4s ease-in-out infinite;
-}
-@keyframes puffAmberFlicker {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 1; }
-}
-
 .task-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .task-title { font-weight: 500; font-size: 1rem; }
 .task-meta {
