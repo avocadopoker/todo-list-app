@@ -1042,7 +1042,7 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
 .streak-num-wrap {
   position: absolute;
   left: 50%;
-  top: 58%;
+  top: 35%;
   transform: translate(-50%, -50%);
   display: inline-block;
   z-index: 2;
