@@ -391,9 +391,8 @@ main {
   filter: drop-shadow(0 1px 3px rgba(229, 50, 42, 0.35));
 }
 
-/* ---------- "puff" effect: the whole row ignites at once and fades out ---------- */
-/* the row (parent motion.li) fades its own opacity to 0 over 2s - everything
-   in this overlay is designed to fade along WITH it, not compete with it. */
+/* ---------- "puff" effect: single amber tint over the whole row, fading
+   out together with it (no per-flame images - kept deliberately cheap) ---------- */
 .puff-overlay {
   position: absolute;
   inset: 0;
@@ -401,89 +400,20 @@ main {
   pointer-events: none;
   overflow: hidden;
 }
-.puff-wash {
+.puff-amber {
   position: absolute;
   inset: 0;
   background: radial-gradient(
     ellipse 100% 100% at 50% 50%,
-    rgba(255, 150, 40, 0.65) 0%,
-    rgba(255, 90, 20, 0.5) 50%,
-    rgba(255, 90, 20, 0.22) 85%,
-    rgba(255, 90, 20, 0.08) 100%
+    rgba(255, 150, 40, 0.6) 0%,
+    rgba(255, 90, 20, 0.45) 55%,
+    rgba(255, 90, 20, 0.2) 100%
   );
-  animation: puffWashFlicker 0.4s ease-in-out infinite;
+  animation: puffAmberFlicker 0.4s ease-in-out infinite;
 }
-@keyframes puffWashFlicker {
+@keyframes puffAmberFlicker {
   0%, 100% { opacity: 0.85; }
   50% { opacity: 1; }
-}
-.puff-tongue-full {
-  position: absolute;
-  bottom: 2%;
-  width: 20px;
-  height: auto;
-  transform-origin: 50% 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5));
-  animation: puffTongueFlicker 0.22s steps(2, end) infinite;
-}
-.puff-tongue-full:nth-child(3n) { filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5)) hue-rotate(-8deg); }
-.puff-tongue-full:nth-child(2n) { filter: drop-shadow(0 0 3px rgba(255, 120, 20, 0.5)) hue-rotate(6deg) saturate(1.15); }
-@keyframes puffTongueFlicker {
-  0% { transform: scaleY(1) scaleX(1) rotate(var(--rot, 0deg)); opacity: 0.92; }
-  33% { transform: scaleY(1.32) scaleX(0.85) rotate(calc(var(--rot, 0deg) - 4deg)); opacity: 1; }
-  66% { transform: scaleY(0.88) scaleX(1.12) rotate(calc(var(--rot, 0deg) + 3deg)); opacity: 0.96; }
-  100% { transform: scaleY(1.15) scaleX(0.92) rotate(calc(var(--rot, 0deg) - 2deg)); opacity: 1; }
-}
-.puff-smoke-wisp {
-  position: absolute;
-  top: -4px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(125, 115, 110, 0.55) 0%, rgba(95, 87, 83, 0.28) 55%, rgba(95, 87, 83, 0) 80%);
-  filter: blur(1px);
-  opacity: 0;
-  animation: puffSmokeWisp 1.1s ease-out infinite;
-  animation-delay: calc(var(--i) * 0.13s);
-}
-@keyframes puffSmokeWisp {
-  0% { opacity: 0; transform: translateY(0) scale(0.5); }
-  20% { opacity: 0.8; }
-  100% { opacity: 0; transform: translateY(-30px) scale(2); }
-}
-.puff-flash {
-  position: absolute;
-  left: 4%;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0.2);
-  background: radial-gradient(circle, #fffef0 0%, #ffd77a 45%, rgba(255, 150, 40, 0) 75%);
-  opacity: 0;
-  animation: puffFlash 0.18s ease-out forwards;
-}
-@keyframes puffFlash {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
-}
-.puff-row-ember {
-  position: absolute;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff2c9 0%, #ffb03d 55%, transparent 100%);
-  box-shadow: 0 0 5px rgba(255, 150, 40, 0.7);
-  opacity: 0;
-  animation: puffRowEmber 0.8s ease-out infinite;
-  animation-delay: calc(var(--i) * 0.09s);
-}
-@keyframes puffRowEmber {
-  0% { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) translateY(-18px) scale(0.3); }
 }
 
 .task-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
@@ -952,6 +882,24 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   z-index: 11;
   animation: slideUp 0.2s ease both;
 }
+.burn-btn-wrap::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 110px;
+  height: 110px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 140, 40, 0.55) 0%, rgba(255, 90, 20, 0.28) 55%, rgba(255, 90, 20, 0) 80%);
+  z-index: -1;
+  animation: burnGlowPulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes burnGlowPulse {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
 .burn-btn {
   display: block;
   background: none;
@@ -970,6 +918,11 @@ select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px va
   height: auto;
   background: none;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
+  animation: burnBtnPulse 1.6s ease-in-out infinite;
+}
+@keyframes burnBtnPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
 }
 .burn-btn-img-pressed {
   animation: burnBtnFadeOut 2s ease-out 2.5s forwards;

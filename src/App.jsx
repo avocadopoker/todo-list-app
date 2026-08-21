@@ -11,26 +11,6 @@ import checkboxAcornImg from './assets/checkbox-acorn.png'
 import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
 import burnButtonSquirrelImg from './assets/burn-button-squirrel.png'
 import burnButtonPressedImg from './assets/burn-button-pressed.png'
-import flame01Img from './assets/flames/flame-01.png'
-import flame02Img from './assets/flames/flame-02.png'
-import flame03Img from './assets/flames/flame-03.png'
-import flame04Img from './assets/flames/flame-04.png'
-import flame05Img from './assets/flames/flame-05.png'
-import flame06Img from './assets/flames/flame-06.png'
-import flame07Img from './assets/flames/flame-07.png'
-import flame08Img from './assets/flames/flame-08.png'
-import flame09Img from './assets/flames/flame-09.png'
-import flame10Img from './assets/flames/flame-10.png'
-import flame11Img from './assets/flames/flame-11.png'
-import flame12Img from './assets/flames/flame-12.png'
-import flame13Img from './assets/flames/flame-13.png'
-import flame14Img from './assets/flames/flame-14.png'
-import flame15Img from './assets/flames/flame-15.png'
-import flame16Img from './assets/flames/flame-16.png'
-import flame17Img from './assets/flames/flame-17.png'
-import flame18Img from './assets/flames/flame-18.png'
-import flame19Img from './assets/flames/flame-19.png'
-import flame20Img from './assets/flames/flame-20.png'
 import './App.css'
 
 /* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
@@ -45,15 +25,8 @@ function FiretailMark({ className = '', flipped = false }) {
   )
 }
 
-function BrandLockup({ small = false, showSub = false, header = false }) {
-  const cls = [
-    'brand',
-    'brand-lockup',
-    small ? 'small' : '',
-    header ? 'header-order' : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
+function BrandLockup({ small = false, showSub = false }) {
+  const cls = ['brand', 'brand-lockup', small ? 'small' : ''].filter(Boolean).join(' ')
 
   const wordmark = (
     <span className="brand-words">
@@ -66,17 +39,8 @@ function BrandLockup({ small = false, showSub = false, header = false }) {
 
   return (
     <div className={cls}>
-      {header ? (
-        <>
-          {wordmark}
-          <FiretailMark flipped />
-        </>
-      ) : (
-        <>
-          <FiretailMark />
-          {wordmark}
-        </>
-      )}
+      <FiretailMark />
+      {wordmark}
     </div>
   )
 }
@@ -464,89 +428,6 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-// hand-scattered layout for the row-burn flame cluster - deliberately
-// irregular (not evenly spaced) so it reads as a wild burst rather than a
-// tidy row of identical flames. The image for each slot cycles through the
-// full FLAME_IMGS set (20 distinct hand-picked shapes) by index.
-const FLAME_IMGS = [
-  flame01Img, flame02Img, flame03Img, flame04Img, flame05Img,
-  flame06Img, flame07Img, flame08Img, flame09Img, flame10Img,
-  flame11Img, flame12Img, flame13Img, flame14Img, flame15Img,
-  flame16Img, flame17Img, flame18Img, flame19Img, flame20Img,
-]
-const FLAME_TONGUES = [
-  { left: 43.1, top: 13.4, width: 26, rot: 20.0, delay: 0.16 },
-  { left: 56.9, top: 49.1, width: 14, rot: 17.0, delay: 0.1 },
-  { left: 6.6, top: 42.3, width: 18, rot: -20.1, delay: 0.11 },
-  { left: 57.7, top: 43.0, width: 22, rot: 26.0, delay: 0.13 },
-  { left: 60.6, bottom: 26.9, width: 19, rot: 1.6, delay: 0.01 },
-  { left: 58.2, bottom: 11.8, width: 17, rot: -2.0, delay: 0.09 },
-  { left: 62.3, top: 27.0, width: 24, rot: -27.7, delay: 0.02 },
-  { left: 98.8, top: 25.9, width: 21, rot: 19.1, delay: 0.14 },
-  { left: 49.3, top: -6.6, width: 10, rot: -24.1, delay: 0.15 },
-  { left: 26.7, bottom: -1.0, width: 12, rot: 25.7, delay: 0.17 },
-  { left: 91.6, top: 9.0, width: 10, rot: -1.7, delay: 0.2 },
-  { left: 54.8, bottom: 3.1, width: 16, rot: 15.6, delay: 0.05 },
-  { left: -1.5, bottom: 19.7, width: 22, rot: 14.5, delay: 0.02 },
-  { left: -1.9, top: 23.1, width: 24, rot: 16.6, delay: 0.04 },
-  { left: 48.9, top: -6.2, width: 15, rot: 15.1, delay: 0.08 },
-  { left: 39.9, top: 28.1, width: 16, rot: -28.0, delay: 0.17 },
-  { left: 87.3, top: 42.6, width: 16, rot: -17.5, delay: 0.2 },
-  { left: 7.2, top: 29.1, width: 14, rot: -16.1, delay: 0.05 },
-  { left: 27.2, top: 25.4, width: 12, rot: -23.8, delay: 0.04 },
-  { left: 58.3, top: 35.8, width: 20, rot: 6.8, delay: 0.03 },
-  { left: 55.6, top: 33.4, width: 19, rot: -6.4, delay: 0.13 },
-  { left: 80.4, top: 55.4, width: 16, rot: 12.6, delay: 0.03 },
-  { left: 17.1, top: -9.6, width: 22, rot: 21.4, delay: 0.12 },
-  { left: 8.1, top: 31.8, width: 26, rot: 25.9, delay: 0.05 },
-  { left: 39.9, bottom: 29.0, width: 21, rot: 5.4, delay: 0.06 },
-  { left: 96.7, top: 41.4, width: 14, rot: -15.2, delay: 0.11 },
-  { left: 25.6, bottom: 1.3, width: 21, rot: 23.2, delay: 0.15 },
-  { left: 42.5, top: 39.6, width: 10, rot: -25.4, delay: 0.06 },
-  { left: 10.4, top: 20.8, width: 20, rot: -20.2, delay: 0.09 },
-  { left: 67.5, bottom: 9.9, width: 28, rot: 25.0, delay: 0.12 },
-  { left: 33.5, top: 18.2, width: 18, rot: 25.9, delay: 0.0 },
-  { left: 3.9, bottom: 9.0, width: 18, rot: -10.1, delay: 0.2 },
-  { left: 34.5, top: 20.6, width: 10, rot: 22.4, delay: 0.15 },
-  { left: 95.3, bottom: 26.6, width: 20, rot: -8.3, delay: 0.14 },
-  { left: 39.5, bottom: 16.2, width: 17, rot: -26.3, delay: 0.1 },
-  { left: 36.0, bottom: 16.9, width: 28, rot: -27.3, delay: 0.01 },
-  { left: 98.3, top: 44.8, width: 21, rot: -4.7, delay: 0.07 },
-  { left: 43.7, top: 16.3, width: 24, rot: 18.9, delay: 0.02 },
-  { left: 58.3, bottom: 10.9, width: 24, rot: -26.8, delay: 0.19 },
-  { left: 59.7, top: 3.1, width: 21, rot: -0.8, delay: 0.18 },
-  { left: 66.2, top: 21.0, width: 16, rot: 1.0, delay: 0.15 },
-  { left: 42.1, top: -2.1, width: 21, rot: -14.5, delay: 0.08 },
-  { left: 41.0, bottom: 6.1, width: 17, rot: 14.3, delay: 0.04 },
-  { left: 56.5, top: 29.9, width: 20, rot: -16.2, delay: 0.03 },
-  { left: 83.6, bottom: -5.3, width: 15, rot: -24.4, delay: 0.2 },
-  { left: 45.1, top: 37.4, width: 21, rot: -16.0, delay: 0.08 },
-  { left: 65.6, top: 4.0, width: 15, rot: 19.0, delay: 0.2 },
-  { left: 81.5, top: 27.1, width: 18, rot: 20.9, delay: 0.01 },
-  { left: 33.1, bottom: 7.0, width: 13, rot: 16.3, delay: 0.0 },
-  { left: 16.4, bottom: 23.5, width: 17, rot: 18.5, delay: 0.05 },
-  { left: 97.4, top: 42.5, width: 12, rot: -3.0, delay: 0.13 },
-  { left: 34.6, top: 0.8, width: 12, rot: 10.3, delay: 0.04 },
-  { left: 69.9, bottom: -0.5, width: 17, rot: -1.6, delay: 0.14 },
-  { left: 76.4, top: 57.9, width: 26, rot: 11.0, delay: 0.1 },
-  { left: 13.2, bottom: 7.2, width: 19, rot: 16.3, delay: 0.18 },
-  { left: 88.1, top: 53.2, width: 22, rot: -20.7, delay: 0.09 },
-  { left: -2.3, top: 11.2, width: 26, rot: 3.9, delay: 0.18 },
-  { left: 63.4, top: 54.7, width: 16, rot: -22.5, delay: 0.17 },
-  { left: 9.6, top: 14.8, width: 16, rot: 22.4, delay: 0.2 },
-  { left: 77.7, bottom: 4.6, width: 20, rot: -13.3, delay: 0.14 },
-  { left: 5.4, top: 12.4, width: 24, rot: -8.8, delay: 0.08 },
-  { left: -0.1, bottom: -2.7, width: 17, rot: 20.6, delay: 0.09 },
-  { left: 31.2, top: 53.7, width: 17, rot: 23.3, delay: 0.09 },
-  { left: 49.9, top: 16.9, width: 13, rot: 10.6, delay: 0.19 },
-  { left: 67.3, top: 29.6, width: 17, rot: -15.6, delay: 0.11 },
-  { left: 54.3, top: 26.0, width: 14, rot: 1.3, delay: 0.17 },
-  { left: 65.5, top: 30.5, width: 19, rot: 20.7, delay: 0.12 },
-  { left: 95.8, top: 14.8, width: 26, rot: -12.7, delay: 0.1 },
-  { left: 48.3, bottom: 11.7, width: 28, rot: -6.9, delay: 0.11 },
-  { left: 37.9, bottom: 19.0, width: 17, rot: 27.4, delay: 0.02 },
-]
-
 function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffExit = true }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
@@ -567,38 +448,7 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
     >
       {exiting && puffExit && (
         <span className="puff-overlay" aria-hidden="true">
-          <span className="puff-wash" />
-          {FLAME_TONGUES.map((f, i) => (
-            <img
-              key={`tongue-${i}`}
-              src={FLAME_IMGS[i % FLAME_IMGS.length]}
-              alt=""
-              className="puff-tongue-full"
-              style={{
-                '--i': i,
-                '--rot': `${f.rot}deg`,
-                left: `${f.left}%`,
-                ...(f.top !== undefined ? { top: `${f.top}%` } : { bottom: `${f.bottom}%` }),
-                width: `${f.width}px`,
-                animationDelay: `${f.delay}s`,
-              }}
-            />
-          ))}
-          <span className="puff-flash" />
-          {Array.from({ length: 7 }).map((_, i) => (
-            <span
-              key={`smoke-${i}`}
-              className="puff-smoke-wisp"
-              style={{ '--i': i, left: `${6 + i * 13}%` }}
-            />
-          ))}
-          {Array.from({ length: 10 }).map((_, i) => (
-            <span
-              key={`ember-${i}`}
-              className="puff-row-ember"
-              style={{ '--i': i, left: `${4 + i * 10}%` }}
-            />
-          ))}
+          <span className="puff-amber" />
         </span>
       )}
       <span className="spine" aria-hidden="true" />
@@ -3968,7 +3818,7 @@ function Shell({ session }) {
   return (
     <div className="app">
       <header className="topbar">
-        <BrandLockup small header />
+        <BrandLockup small showSub />
         <nav className="screen-tabs">
           <button
             className={screen === 'tdl' ? 'active nav-icon-btn' : 'nav-icon-btn'}
