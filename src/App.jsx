@@ -1,6 +1,49 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
+import squirrelHighFiveImg from './assets/squirrel-highfive.png'
+import firetailLogoImg from './assets/firetail-logo.png'
+import navTodayIconImg from './assets/nav-today-icon.png'
+import navListsIconImg from './assets/nav-lists-icon.png'
+import navSocialIconImg from './assets/nav-social-icon.png'
+import navSettingsIconImg from './assets/nav-settings-icon.png'
+import checkboxAcornImg from './assets/checkbox-acorn.png'
+import flamethrowerSquirrelImg from './assets/flamethrower-squirrel.png'
+import burnButtonSquirrelImg from './assets/burn-button-squirrel.png'
+import burnButtonPressedImg from './assets/burn-button-pressed.png'
 import './App.css'
+
+/* ---------- brand: flame-tail squirrel mark (uploaded artwork) ---------- */
+function FiretailMark({ className = '', flipped = false }) {
+  return (
+    <img
+      src={firetailLogoImg}
+      alt=""
+      aria-hidden="true"
+      className={`ft-mark${flipped ? ' ft-mark-flipped' : ''} ${className}`}
+    />
+  )
+}
+
+function BrandLockup({ small = false, showSub = false, hideMark = false }) {
+  const cls = ['brand', 'brand-lockup', small ? 'small' : ''].filter(Boolean).join(' ')
+
+  const wordmark = (
+    <span className="brand-words">
+      <span className="brand-title">
+        <span className="brand-fire">Fire</span>Tail
+      </span>
+      {showSub && <span className="brand-sub">Habits</span>}
+    </span>
+  )
+
+  return (
+    <div className={cls}>
+      {!hideMark && <FiretailMark />}
+      {wordmark}
+    </div>
+  )
+}
 
 /* ---------- date helpers ---------- */
 function ymd(d) {
@@ -152,6 +195,13 @@ function formatTime(timeStr) {
   const d = new Date(2000, 0, 1, Number(h), Number(m))
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
+// "2026-08-20" -> "Aug 20, 2026"
+function formatDateLabel(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 const VIEWS = [
   { key: 'today', label: 'Today' },
@@ -251,10 +301,8 @@ function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">
-          <span className="brand-mark">/</span>list
-        </div>
-        <p className="auth-tag">Get it done, in order.</p>
+        <BrandLockup showSub />
+        <p className="auth-tag">Keep the streak alive.</p>
 
         <form onSubmit={submit} className="auth-form">
           {mode === 'signup' && (
@@ -354,9 +402,7 @@ function ResetPassword({ onDone }) {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand">
-          <span className="brand-mark">/</span>list
-        </div>
+        <BrandLockup showSub />
         <p className="auth-tag">Choose a new password.</p>
         <form onSubmit={submit} className="auth-form">
           <label>
@@ -382,11 +428,22 @@ function ResetPassword({ onDone }) {
 }
 
 /* ---------- task row ---------- */
-function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly }) {
+function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEdit, readOnly, puffExit = true }) {
   const overdue = task.due_date && task.due_date < today()
   const overdueDays = overdue ? daysBetween(task.due_date, today()) : 0
   return (
-    <li className={`task ${selected ? 'is-selected' : ''}`}>
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={
+        puffExit
+          ? { opacity: 0, scale: 0.97, transition: { duration: 2.5, ease: 'easeIn' } }
+          : { opacity: 0, transition: { duration: 0.15 } }
+      }
+      className={`task ${selected ? 'is-selected' : ''}`}
+      data-task-id={task.id}
+    >
       <span className="spine" aria-hidden="true" />
       <label className={`task-check${readOnly ? ' read-only' : ''}`}>
         <input
@@ -397,6 +454,14 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           aria-label={`Select ${task.title}`}
         />
         <span className="box" />
+        {!!selected && (
+          <img
+            src={checkboxAcornImg}
+            alt=""
+            className="task-check-acorn"
+            aria-hidden="true"
+          />
+        )}
       </label>
       <div className="task-body">
         <span className="task-title">{task.title}</span>
@@ -455,17 +520,17 @@ function TaskRow({ task, selected, onSelect, timeless, fromName, groupName, onEd
           </svg>
         </button>
       )}
-    </li>
+    </motion.li>
   )
 }
 
 /* ---------- add task ---------- */
-function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
+function AddTask({ onDone, onCancel, people, groups, myId, presetDate, presetRecurring }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(presetDate || '')
   const [time, setTime] = useState('')
   const [duration, setDuration] = useState('2')
-  const [recurring, setRecurring] = useState(false)
+  const [recurring, setRecurring] = useState(!!presetRecurring)
   const [repeatInterval, setRepeatInterval] = useState(1)
   const [repeatUnit, setRepeatUnit] = useState('week')
   const [assignee, setAssignee] = useState(`u:${myId}`)
@@ -488,8 +553,8 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
     if (!name) return
     setBusy(true)
     setErr('')
-    const due = recurring ? date || today() : date || null
-    const useTime = due ? time : ''
+    const due = date
+    const useTime = time
     const isGroup = assignee.startsWith('g:')
     const targetId = assignee.slice(2)
     const { error } = await supabase.from('tasks').insert([
@@ -517,42 +582,50 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
         <button className="ghost" onClick={onCancel}>
           ← Back
         </button>
-        <h2>New task</h2>
+        <h2>{presetRecurring ? 'New habit' : 'New task'}</h2>
       </div>
 
       <form onSubmit={save} className="add-form">
-        <label>
-          Task
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs doing?"
+          autoFocus
+          required
+          aria-label="Task"
+        />
+
+        <div className="pseudo-field-wrap">
           <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What needs doing?"
-            autoFocus
+            type="date"
+            className="pseudo-field-input"
+            value={date}
+            onChange={(e) => changeDate(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             required
+            aria-label="Date"
           />
-        </label>
-
-        <label>
-          Date
-          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
+          <span className={date ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {date ? formatDateLabel(date) : 'Date'}
           </span>
-        </label>
+        </div>
 
-        {date && (
-          <label>
-            Time (optional)
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </label>
-        )}
+        <div className="pseudo-field-wrap">
+          <input
+            type="time"
+            className="pseudo-field-input"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            aria-label="Time of Day"
+          />
+          <span className={time ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {time ? formatTime(time + ':00') : 'Time of Day'}
+          </span>
+        </div>
 
-        {date && time && (
+        {time && (
           <div className="field">
             <span className="field-label">How long will it take?</span>
             <div className="duration-picker">
@@ -665,21 +738,108 @@ function AddTask({ onDone, onCancel, people, groups, myId, presetDate }) {
 }
 
 /* ---------- streak celebration overlay ---------- */
-function StreakBurst({ n, onEnd }) {
-  useEffect(() => {
-    const t = setTimeout(onEnd, 2600)
-    return () => clearTimeout(t)
-  }, [onEnd])
+// shown once a day, whenever the day's list gets fully cleared. The line
+// shown comes from a per-user shuffled order through the shared
+// reward_lines pool (profiles.reward_order / reward_position) - guarantees
+// no repeat until every line has been seen, then reshuffles.
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+// picks the next line for this user, advancing (and persisting) their
+// shuffle state; reshuffles using the CURRENT pool once exhausted, so
+// lines added later only join in at the next reshuffle. Returns null if
+// the pool is empty (nothing configured yet).
+async function pickAndAdvanceReward(profile, rewardLines, myId) {
+  if (!rewardLines || rewardLines.length === 0) return null
+  const validIds = new Set(rewardLines.map((r) => r.id))
+  let order = Array.isArray(profile?.reward_order)
+    ? profile.reward_order.filter((id) => validIds.has(id))
+    : []
+  let pos = profile?.reward_position || 0
+
+  if (order.length === 0 || pos >= order.length) {
+    order = shuffle(rewardLines.map((r) => r.id))
+    pos = 0
+  }
+
+  const lineId = order[pos]
+  const lineObj = rewardLines.find((r) => r.id === lineId)
+  await supabase
+    .from('profiles')
+    .update({ reward_order: order, reward_position: pos + 1 })
+    .eq('id', myId)
+
+  return lineObj ? lineObj.text : null
+}
+
+function StreakBurst({ n, line, rewards, onEnd }) {
+  // `rewards` was fetched before today's clear, so its days_remaining /
+  // reached values are one day stale - recompute them against the new
+  // streak (n) so the popup shows today's real numbers.
+  const freshRewards = (rewards || []).map((r) => ({
+    ...r,
+    days_remaining: Math.max(r.target_streak - n, 0),
+    reached: n >= r.target_streak,
+  }))
   return (
-    <div className="streak-overlay" onClick={onEnd}>
+    <div className="streak-overlay">
       <div className="streak-pop">
         <div className="burst" aria-hidden="true">
           {Array.from({ length: 12 }).map((_, i) => (
             <span key={i} style={{ '--i': i }} />
           ))}
         </div>
-        <div className="streak-num">🔥 {n}</div>
-        <div className="streak-caption">day streak!</div>
+        <div className="streak-hero">
+          <img className="streak-squirrels" src={squirrelHighFiveImg} alt="" />
+          <div className="streak-num-wrap">
+            <div className="num-fire" aria-hidden="true">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <span key={i} className="num-fire-tongue" style={{ '--i': i }} />
+              ))}
+              <span className="num-fire-core" />
+            </div>
+            <div className="streak-num">{n}</div>
+            <div className="num-embers" aria-hidden="true">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <span key={i} style={{ '--i': i }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        {line && <div className="streak-line-box"><div className="streak-line">{line}</div></div>}
+        {freshRewards.length > 0 && (
+          <div className="burst-rewards">
+            {freshRewards.map((r) => (
+              <div key={r.id} className="burst-reward-line">
+                <span className="burst-reward-icon" aria-hidden="true">🎁</span>
+                {r.reached ? (
+                  <span>
+                    Congratz!! You are receiving this reward from {r.giver_name}:{' '}
+                    <strong>{r.reward_text}</strong>
+                  </span>
+                ) : r.visibility === 'visible' ? (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to
+                    receive <strong>{r.reward_text}</strong> from {r.giver_name}
+                  </span>
+                ) : (
+                  <span>
+                    {r.days_remaining} more day{r.days_remaining === 1 ? '' : 's'} to get
+                    a reward from {r.giver_name}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <button className="streak-continue" onClick={onEnd}>
+          Nice!
+        </button>
       </div>
     </div>
   )
@@ -715,8 +875,8 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
     if (!name) return
     setBusy(true)
     setErr('')
-    const due = recurring ? date || today() : date || null
-    const useTime = due ? time : ''
+    const due = date
+    const useTime = time
     const willBeHabit = recurring && (repeatUnit === 'day' || repeatUnit === 'week' || repeatUnit === 'month')
     const isGroup = assignee.startsWith('g:')
     const targetId = assignee.slice(2)
@@ -753,38 +913,46 @@ function EditTask({ task, onDone, onCancel, people, groups, myId }) {
       </div>
 
       <form onSubmit={save} className="add-form">
-        <label>
-          Task
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs doing?"
+          autoFocus
+          required
+          aria-label="Task"
+        />
+
+        <div className="pseudo-field-wrap">
           <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="What needs doing?"
-            autoFocus
+            type="date"
+            className="pseudo-field-input"
+            value={date}
+            onChange={(e) => changeDate(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
             required
+            aria-label="Date"
           />
-        </label>
-
-        <label>
-          Date
-          <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
-          <span className="hint">
-            Leave empty for a timeless task - no deadline, surfaced over time.
+          <span className={date ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {date ? formatDateLabel(date) : 'Date'}
           </span>
-        </label>
+        </div>
 
-        {date && (
-          <label>
-            Time (optional)
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </label>
-        )}
+        <div className="pseudo-field-wrap">
+          <input
+            type="time"
+            className="pseudo-field-input"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            aria-label="Time of Day"
+          />
+          <span className={time ? 'pseudo-field-display has-value' : 'pseudo-field-display'}>
+            {time ? formatTime(time + ':00') : 'Time of Day'}
+          </span>
+        </div>
 
-        {date && time && (
+        {time && (
           <div className="field">
             <span className="field-label">How long will it take?</span>
             <div className="duration-picker">
@@ -1037,13 +1205,17 @@ function CalendarView({ tasks, selected, toggleSelect, onAddForDate, onEditTask,
 }
 
 /* ---------- TDL screen ---------- */
-function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople }) {
+function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, viewablePeople, rewardLines, incomingRewards }) {
   const [view, setView] = useState('today')
   const [selected, setSelected] = useState(new Set())
   const [adding, setAdding] = useState(false)
   const [addDate, setAddDate] = useState(null)
   const [editing, setEditing] = useState(null)
   const [burst, setBurst] = useState(null)
+  const [burstLine, setBurstLine] = useState(null)
+  const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
+  const [flamethrowerPositions, setFlamethrowerPositions] = useState([])
+  const [burnJustPressed, setBurnJustPressed] = useState(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1073,6 +1245,29 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     const requiredToday = scopedTasks.filter((t) => t.due_date && t.due_date <= t0)
     const clearedNow = requiredToday.filter((t) => selected.has(t.id))
     const remaining = requiredToday.length - clearedNow.length
+    const willCelebrate =
+      requiredToday.length > 0 && remaining === 0 && profile && profile.clear_last !== t0
+
+    // If this clear isn't emptying the whole day, the rows play their "puff"
+    // exit animation (handled by AnimatePresence/TaskRow). If it IS emptying
+    // the day, skip the flourish entirely and go straight to celebration -
+    // no competing effects. AnimatePresence keeps each row mounted just long
+    // enough to finish its exit transition before it's actually removed.
+    setLastClearWasCelebration(willCelebrate)
+    if (!willCelebrate && chosen.length > 0) {
+      const positions = chosen
+        .map((t) => {
+          const rowEl = document.querySelector(`[data-task-id="${t.id}"]`)
+          if (!rowEl) return null
+          const rect = rowEl.getBoundingClientRect()
+          return { id: t.id, top: rect.top + rect.height / 2, right: rect.right }
+        })
+        .filter(Boolean)
+      setFlamethrowerPositions(positions)
+      setBurnJustPressed(true)
+      setTimeout(() => setFlamethrowerPositions([]), 2500)
+      setTimeout(() => setBurnJustPressed(false), 4500)
+    }
 
     for (const t of chosen) {
       if (t.repeat_unit) {
@@ -1106,15 +1301,27 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
     }
 
     // daily "clear the list" streak: fired when this action empties Today
-    if (requiredToday.length > 0 && remaining === 0 && profile) {
-      if (profile.clear_last !== t0) {
-        const newStreak = (profile.clear_streak || 0) + 1
-        await supabase
-          .from('profiles')
-          .update({ clear_streak: newStreak, clear_last: t0 })
-          .eq('id', myId)
-        setBurst(newStreak)
+    if (willCelebrate) {
+      const newStreak = (profile.clear_streak || 0) + 1
+      let newProgress = (profile.token_progress || 0) + 1
+      let newTokens = profile.streak_tokens || 0
+      if (newProgress >= 10) {
+        newTokens += 1
+        newProgress = 0
       }
+      await supabase
+        .from('profiles')
+        .update({
+          clear_streak: newStreak,
+          clear_last: t0,
+          token_progress: newProgress,
+          streak_tokens: newTokens,
+          streak_checked_through: t0,
+        })
+        .eq('id', myId)
+      const line = await pickAndAdvanceReward(profile, rewardLines, myId)
+      setBurstLine(line)
+      setBurst(newStreak)
     }
 
     setSelected(new Set())
@@ -1185,6 +1392,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
       groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
       onEdit={readOnly ? undefined : setEditing}
       readOnly={readOnly}
+      puffExit={!lastClearWasCelebration}
     />
   )
 
@@ -1204,6 +1412,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
                 {profile.clear_streak > 0
                   ? `🔥 ${profile.clear_streak} day streak`
                   : '0 Day streak 😭'}
+                {profile.streak_tokens > 0 && (
+                  <span className="token-tag"> · 🛡️ {profile.streak_tokens}</span>
+                )}
               </span>
             )
           )}
@@ -1228,6 +1439,9 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
             {profile.clear_streak > 0
               ? `🔥 ${profile.clear_streak} day streak`
               : '0 Day streak 😭'}
+            {profile.streak_tokens > 0 && (
+              <span className="token-tag"> · 🛡️ {profile.streak_tokens}</span>
+            )}
           </div>
         )
       )}
@@ -1270,12 +1484,16 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
           {dayGroups.map((g) => (
             <div key={g.date} className="day-group">
               <div className="day-sep">{g.label}</div>
-              <ul className="task-list">{g.tasks.map(renderRow)}</ul>
+              <ul className="task-list">
+                <AnimatePresence initial={false}>{g.tasks.map(renderRow)}</AnimatePresence>
+              </ul>
             </div>
           ))}
         </div>
       ) : (
-        <ul className="task-list">{visible.map(renderRow)}</ul>
+        <ul className="task-list">
+          <AnimatePresence initial={false}>{visible.map(renderRow)}</AnimatePresence>
+        </ul>
       )}
 
       {!readOnly && (
@@ -1284,203 +1502,60 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         </button>
       )}
 
-      {!readOnly && selected.size > 0 && (
-        <div className="delete-bar done-bar">
-          <span>{selected.size} selected</span>
-          <button onClick={doneSelected}>{selected.size} Done</button>
-        </div>
-      )}
-
-      {burst !== null && <StreakBurst n={burst} onEnd={() => setBurst(null)} />}
-    </div>
-  )
-}
-
-/* ---------- ideas screen ---------- */
-function Ideas({ ideas, loading, refresh, groups, myId, nameFor, readOnly, onDeleted }) {
-  const [adding, setAdding] = useState(false)
-  const [text, setText] = useState('')
-  const [target, setTarget] = useState('me')
-  const [selected, setSelected] = useState(new Set())
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
-  const toggleSelect = (id) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  async function save(e) {
-    e.preventDefault()
-    const body = text.trim()
-    if (!body) return
-    setBusy(true)
-    setErr('')
-    const { error } = await supabase.from('ideas').insert([
-      {
-        title: body,
-        group_id: target === 'me' ? null : target,
-        user_id: myId,
-      },
-    ])
-    setBusy(false)
-    if (error) setErr(error.message)
-    else {
-      setText('')
-      setTarget('me')
-      setAdding(false)
-      refresh()
-    }
-  }
-
-  async function deleteSelected() {
-    await supabase.from('ideas').delete().in('id', [...selected])
-    setSelected(new Set())
-    refresh()
-  }
-
-  async function deleteThisList() {
-    await supabase.from('ideas').delete().eq('user_id', myId)
-    await supabase.from('profiles').update({ ideas_hidden: true }).eq('id', myId)
-    refresh()
-    onDeleted()
-  }
-
-  if (adding && !readOnly)
-    return (
-      <div className="add-screen">
-        <div className="add-head">
-          <button className="ghost" onClick={() => setAdding(false)}>
-            ← Back
-          </button>
-          <h2>New idea</h2>
-        </div>
-        <form onSubmit={save} className="add-form">
-          <label>
-            Idea
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Something you don't want to forget"
-              autoFocus
-              required
+      {!readOnly && (selected.size > 0 || burnJustPressed) && (
+        <div className="burn-btn-wrap">
+          <button className="burn-btn" onClick={doneSelected} aria-label="Burn these tasks">
+            <img
+              src={burnJustPressed ? burnButtonPressedImg : burnButtonSquirrelImg}
+              alt=""
+              className={burnJustPressed ? 'burn-btn-img burn-btn-img-pressed' : 'burn-btn-img'}
             />
-          </label>
-
-          {groups.length > 0 && (
-            <label>
-              Idea for
-              <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                <option value="me">Just me</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} (shared)
-                  </option>
-                ))}
-              </select>
-              <span className="hint">
-                Group ideas are visible to everyone in that group.
-              </span>
-            </label>
-          )}
-
-          {err && <p className="auth-msg">{err}</p>}
-
-          <div className="add-actions">
-            <button type="button" className="ghost" onClick={() => setAdding(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={busy}>
-              {busy ? 'Saving...' : 'Add idea'}
-            </button>
-          </div>
-        </form>
-      </div>
-    )
-
-  const groupName = (gid) => (groups.find((g) => g.id === gid) || {}).name
-
-  return (
-    <div className="ideas">
-      {loading ? (
-        <p className="empty">Loading...</p>
-      ) : ideas.length === 0 ? (
-        <p className="empty">No ideas yet. Add one with the + button.</p>
-      ) : (
-        <ul className="task-list">
-          {ideas.map((i) => (
-            <li
-              key={i.id}
-              className={`task idea ${selected.has(i.id) ? 'is-selected' : ''}`}
-            >
-              <span className="spine" aria-hidden="true" />
-              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(i.id)}
-                  disabled={readOnly}
-                  onChange={() => !readOnly && toggleSelect(i.id)}
-                  aria-label={`Select ${i.title}`}
-                />
-                <span className="box" />
-              </label>
-              <div className="task-body">
-                <span className="task-title">{i.title}</span>
-                <span className="task-meta">
-                  {i.group_id && (
-                    <span className="group-tag">{groupName(i.group_id)}</span>
-                  )}
-                  {i.user_id !== myId && (
-                    <span className="from-tag">from {nameFor(i.user_id)}</span>
-                  )}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {!readOnly && (
-        <button className="fab" onClick={() => setAdding(true)} aria-label="Add idea">
-          +
-        </button>
-      )}
-
-      {!readOnly && selected.size > 0 && (
-        <div className="delete-bar">
-          <span>{selected.size} selected</span>
-          <button onClick={deleteSelected}>Delete selected</button>
+          </button>
         </div>
       )}
 
-      {!readOnly && (
-        <div className="list-delete-zone">
-          {confirmDelete ? (
-            <div className="delete-confirm">
-              <p className="setup-note">
-                Delete all your ideas and hide this tab? This can't be undone.
-              </p>
-              <div className="invite-actions">
-                <button className="btn-danger" onClick={deleteThisList}>
-                  Yes, delete this list
-                </button>
-                <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
-              Delete this list
-            </button>
-          )}
-        </div>
+      <AnimatePresence>
+        {flamethrowerPositions.map((pos) => (
+          <motion.img
+            key={pos.id}
+            src={flamethrowerSquirrelImg}
+            alt=""
+            aria-hidden="true"
+            className="flamethrower-overlay"
+            style={{
+              top: pos.top,
+              left: pos.right - 150 - 10,
+            }}
+            initial={{ opacity: 0, x: 20, y: '-50%', scale: 0.85, scaleX: -1, rotate: 0 }}
+            animate={{
+              opacity: 1,
+              y: '-50%',
+              scale: 1,
+              scaleX: -1,
+              x: [8, -10, 6, -14, 10, -6, 8],
+              rotate: [4, -9, 7, -13, 5, -7, 4],
+            }}
+            exit={{ opacity: 0, x: 10, y: '-50%', scale: 0.9, scaleX: -1, rotate: 0, transition: { duration: 0.3 } }}
+            transition={{
+              opacity: { duration: 0.3, ease: 'easeOut' },
+              scale: { duration: 0.3, ease: 'easeOut' },
+              x: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+              rotate: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+            }}
+          />
+        ))}
+      </AnimatePresence>
+
+      {burst !== null && (
+        <StreakBurst
+          n={burst}
+          line={burstLine}
+          rewards={!readOnly ? incomingRewards : null}
+          onEnd={() => {
+            setBurst(null)
+            setBurstLine(null)
+          }}
+        />
       )}
     </div>
   )
@@ -1492,34 +1567,56 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
 
-  const sorted = [...items].sort((a, b) =>
-    (a.created_at || '').localeCompare(b.created_at || '')
-  )
+  const sorted = [...items].sort((a, b) => {
+    if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
+    return (a.created_at || '').localeCompare(b.created_at || '')
+  })
 
   async function addItem(e) {
     e.preventDefault()
     const title = text.trim()
     if (!title) return
     setBusy(true)
-    await supabase.from('list_items').insert([{ list_id: list.id, title }])
+    const nextPos = sorted.length ? (sorted[sorted.length - 1].position || 0) + 1 : 1
+    await supabase.from('list_items').insert([{ list_id: list.id, title, position: nextPos }])
     setText('')
     setBusy(false)
     setAdding(false)
     refresh()
   }
 
-  async function toggleItem(item) {
-    if (readOnly) return
-    await supabase
-      .from('list_items')
-      .update({ is_complete: !item.is_complete })
-      .eq('id', item.id)
+  async function removeItem(id) {
+    await supabase.from('list_items').delete().eq('id', id)
     refresh()
   }
 
-  async function removeItem(id) {
-    await supabase.from('list_items').delete().eq('id', id)
+  async function moveItem(item, direction) {
+    const idx = sorted.findIndex((i) => i.id === item.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]
+    await Promise.all([
+      supabase.from('list_items').update({ position: other.position || 0 }).eq('id', item.id),
+      supabase.from('list_items').update({ position: item.position || 0 }).eq('id', other.id),
+    ])
+    refresh()
+  }
+
+  function startEdit(item) {
+    if (readOnly) return
+    setEditingId(item.id)
+    setEditText(item.title)
+  }
+
+  async function saveEdit() {
+    const title = editText.trim()
+    const id = editingId
+    setEditingId(null)
+    if (!title || !id) return
+    await supabase.from('list_items').update({ title }).eq('id', id)
     refresh()
   }
 
@@ -1535,30 +1632,60 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
         <p className="empty">Nothing on this list yet.</p>
       ) : (
         <ul className="task-list">
-          {sorted.map((item) => (
-            <li key={item.id} className={`task ${item.is_complete ? 'idea-done' : ''}`}>
+          {sorted.map((item, i) => (
+            <li key={item.id} className="task">
               <span className="spine" aria-hidden="true" />
-              <label className={`task-check${readOnly ? ' read-only' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={item.is_complete}
-                  disabled={readOnly}
-                  onChange={() => toggleItem(item)}
-                  aria-label={`Mark ${item.title} done`}
-                />
-                <span className="box" />
-              </label>
               <div className="task-body">
-                <span className="task-title">{item.title}</span>
+                {editingId === item.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editText}
+                    autoFocus
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="task-title task-title-editable"
+                    onClick={() => startEdit(item)}
+                  >
+                    {item.title}
+                  </span>
+                )}
               </div>
               {!readOnly && (
-                <button
-                  className="list-remove"
-                  onClick={() => removeItem(item.id)}
-                  aria-label={`Delete ${item.title}`}
-                >
-                  ×
-                </button>
+                <div className="item-actions">
+                  <div className="item-reorder">
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(item, 'up')}
+                      disabled={i === 0}
+                      aria-label={`Move ${item.title} up`}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="item-move"
+                      onClick={() => moveItem(item, 'down')}
+                      disabled={i === sorted.length - 1}
+                      aria-label={`Move ${item.title} down`}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  <button
+                    className="list-remove"
+                    onClick={() => removeItem(item.id)}
+                    aria-label={`Delete ${item.title}`}
+                  >
+                    ×
+                  </button>
+                </div>
               )}
             </li>
           ))}
@@ -1617,49 +1744,36 @@ function CustomList({ list, items, refresh, onDeleted, readOnly }) {
 
 /* ---------- Lists screen: Ideas + custom checklists as subtabs ---------- */
 function ListsScreen({
-  ideas,
   lists,
   listItems,
-  loading,
   refresh,
-  groups,
   myId,
-  nameFor,
-  profile,
   viewablePeople,
 }) {
-  const [activeTab, setActiveTab] = useState('ideas')
+  const [activeTab, setActiveTab] = useState(null)
   const [creating, setCreating] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
+  const [renamingTab, setRenamingTab] = useState(null) // a list id, or null
+  const [renameText, setRenameText] = useState('')
 
   const readOnly = viewingUserId !== null
-  const ideasHidden = !readOnly && !!profile?.ideas_hidden
-
-  // "Me": my own ideas/lists plus group-shared ideas. Someone else: their
-  // ideas/lists (their lists are always personal; their group ideas show
-  // too, same as "Me" - I'm in that group if I can see it at all).
-  const scopedIdeas = readOnly
-    ? ideas.filter((i) => i.user_id === viewingUserId || i.group_id)
-    : ideas.filter((i) => i.user_id === myId || i.group_id)
   const scopedLists = readOnly
     ? lists.filter((l) => l.user_id === viewingUserId)
     : lists.filter((l) => l.user_id === myId)
 
-  const activeList =
-    activeTab !== 'ideas' ? scopedLists.find((l) => l.id === activeTab) : null
+  const activeList = scopedLists.find((l) => l.id === activeTab) || null
 
   // a list may have been deleted, or we switched who we're viewing - fall
-  // back to Ideas whenever the active tab no longer resolves to anything
+  // back to whichever list is first (or nothing) once the active one no
+  // longer resolves
   useEffect(() => {
-    if (activeTab === 'ideas') {
-      if (ideasHidden) setActiveTab(scopedLists[0]?.id || 'ideas')
-      return
+    if (activeTab && !scopedLists.some((l) => l.id === activeTab)) {
+      setActiveTab(scopedLists[0]?.id || null)
+    } else if (!activeTab && scopedLists.length > 0) {
+      setActiveTab(scopedLists[0].id)
     }
-    if (!scopedLists.some((l) => l.id === activeTab)) {
-      setActiveTab(ideasHidden ? scopedLists[0]?.id || 'ideas' : 'ideas')
-    }
-  }, [activeTab, scopedLists, ideasHidden])
+  }, [activeTab, scopedLists])
 
   async function createList(e) {
     e.preventDefault()
@@ -1673,6 +1787,22 @@ function ListsScreen({
     setCreating(false)
     refresh()
     if (!error && data && data[0]) setActiveTab(data[0].id)
+  }
+
+  function startRename(tabKey, currentName) {
+    setRenamingTab(tabKey)
+    setRenameText(currentName)
+  }
+
+  async function saveTabRename() {
+    const name = renameText.trim()
+    const tabKey = renamingTab
+    setRenamingTab(null)
+    if (!name) return
+    const current = scopedLists.find((l) => l.id === tabKey)
+    if (current && name === current.name) return
+    await supabase.from('lists').update({ name }).eq('id', tabKey)
+    refresh()
   }
 
   const viewingName = readOnly
@@ -1691,7 +1821,7 @@ function ListsScreen({
             value={viewingUserId || 'me'}
             onChange={(e) => {
               setViewingUserId(e.target.value === 'me' ? null : e.target.value)
-              setActiveTab('ideas')
+              setActiveTab(null)
             }}
           >
             <option value="me">My lists</option>
@@ -1722,23 +1852,35 @@ function ListsScreen({
         </form>
       ) : (
         <div className="view-switch lists-switch">
-          {!ideasHidden && (
-            <button
-              className={activeTab === 'ideas' ? 'active' : ''}
-              onClick={() => setActiveTab('ideas')}
-            >
-              Ideas
-            </button>
+          {scopedLists.map((l) =>
+            renamingTab === l.id ? (
+              <input
+                key={l.id}
+                type="text"
+                className="tab-rename-input"
+                value={renameText}
+                autoFocus
+                onChange={(e) => setRenameText(e.target.value)}
+                onBlur={saveTabRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                  if (e.key === 'Escape') setRenamingTab(null)
+                }}
+              />
+            ) : (
+              <button
+                key={l.id}
+                className={activeTab === l.id ? 'active' : ''}
+                onClick={() =>
+                  activeTab === l.id && !readOnly
+                    ? startRename(l.id, l.name)
+                    : setActiveTab(l.id)
+                }
+              >
+                {l.name}
+              </button>
+            )
           )}
-          {scopedLists.map((l) => (
-            <button
-              key={l.id}
-              className={activeTab === l.id ? 'active' : ''}
-              onClick={() => setActiveTab(l.id)}
-            >
-              {l.name}
-            </button>
-          ))}
           {!readOnly && (
             <button
               className="lists-add-btn"
@@ -1751,23 +1893,13 @@ function ListsScreen({
         </div>
       )}
 
-      {activeTab === 'ideas' && !ideasHidden ? (
-        <Ideas
-          ideas={scopedIdeas}
-          loading={loading}
-          refresh={refresh}
-          groups={groups}
-          myId={myId}
-          nameFor={nameFor}
-          readOnly={readOnly}
-          onDeleted={() => setActiveTab(scopedLists[0]?.id || 'ideas')}
-        />
-      ) : activeList ? (
+      {activeList ? (
         <CustomList
+          key={activeList.id}
           list={activeList}
           items={listItems.filter((it) => it.list_id === activeList.id)}
           refresh={refresh}
-          onDeleted={() => setActiveTab('ideas')}
+          onDeleted={() => setActiveTab(null)}
           readOnly={readOnly}
         />
       ) : (
@@ -1780,9 +1912,461 @@ function ListsScreen({
 }
 
 /* ---------- recurring screen ---------- */
-function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
+/* ---------- habit builder presets ---------- */
+const BUILDER_CATEGORIES = [
+  {
+    id: 'cleaning',
+    label: 'Cleaning',
+    items: [
+      { title: 'Make the bed', interval: 1, unit: 'day' },
+      { title: 'Wash the dishes', interval: 1, unit: 'day' },
+      { title: 'Wipe kitchen counters', interval: 1, unit: 'day' },
+      { title: 'Take out the trash', interval: 3, unit: 'day' },
+      { title: 'Tidy up the living room', interval: 1, unit: 'day' },
+      { title: 'Vacuum the floors', interval: 1, unit: 'week' },
+      { title: 'Change bed sheets', interval: 1, unit: 'week' },
+      { title: 'Clean the bathroom', interval: 1, unit: 'week' },
+      { title: 'Do the laundry', interval: 1, unit: 'week' },
+      { title: 'Wash towels', interval: 1, unit: 'week' },
+      { title: 'Mop the floors', interval: 2, unit: 'week' },
+      { title: 'Clean out the fridge', interval: 2, unit: 'week' },
+      { title: 'Dust surfaces and shelves', interval: 2, unit: 'week' },
+      { title: 'Clean mirrors and windows', interval: 1, unit: 'month' },
+      { title: 'Descale the kettle / coffee machine', interval: 1, unit: 'month' },
+      { title: 'Declutter one drawer or shelf', interval: 1, unit: 'month' },
+      { title: 'Wash pillows and duvet', interval: 3, unit: 'month' },
+      { title: 'Clean the oven', interval: 3, unit: 'month' },
+      { title: 'Flip / rotate the mattress', interval: 3, unit: 'month' },
+      { title: 'Deep clean the shower head', interval: 3, unit: 'month' },
+    ],
+  },
+  {
+    id: 'home',
+    label: 'Home maintenance',
+    items: [
+      { title: 'Test smoke and CO detectors', interval: 1, unit: 'month' },
+      { title: 'Check under sinks for leaks', interval: 1, unit: 'month' },
+      { title: 'Clean the dryer lint trap and vent', interval: 1, unit: 'month' },
+      { title: 'Replace HVAC / furnace filter', interval: 3, unit: 'month' },
+      { title: 'Run the garbage disposal cleaner', interval: 1, unit: 'month' },
+      { title: 'Test GFCI outlets', interval: 3, unit: 'month' },
+      { title: 'Clean refrigerator coils', interval: 6, unit: 'month' },
+      { title: 'Lubricate garage door and hinges', interval: 6, unit: 'month' },
+      { title: 'Check fire extinguisher pressure', interval: 6, unit: 'month' },
+      { title: 'Clean the gutters', interval: 6, unit: 'month' },
+      { title: 'Flush the water heater', interval: 12, unit: 'month' },
+      { title: 'Replace smoke detector batteries', interval: 12, unit: 'month' },
+      { title: 'Reseal bathroom and kitchen caulk', interval: 12, unit: 'month' },
+      { title: 'Inspect the roof and exterior', interval: 12, unit: 'month' },
+      { title: 'Service the HVAC / boiler', interval: 12, unit: 'month' },
+      { title: 'Pest control inspection', interval: 12, unit: 'month' },
+      { title: 'Chimney sweep and inspection', interval: 12, unit: 'month' },
+      { title: 'Check attic / basement for damp', interval: 6, unit: 'month' },
+      { title: 'Locate and test the water shutoff valve', interval: 12, unit: 'month' },
+      { title: 'Touch up paint and fill wall dings', interval: 12, unit: 'month' },
+    ],
+  },
+  {
+    id: 'car',
+    label: 'Car & vehicle',
+    items: [
+      { title: 'Check tire pressure', interval: 1, unit: 'month' },
+      { title: 'Top up washer fluid', interval: 1, unit: 'month' },
+      { title: 'Check oil and coolant levels', interval: 1, unit: 'month' },
+      { title: 'Check all lights and indicators', interval: 1, unit: 'month' },
+      { title: 'Wash the car', interval: 1, unit: 'month' },
+      { title: 'Vacuum and tidy the interior', interval: 1, unit: 'month' },
+      { title: 'Check tire tread depth', interval: 3, unit: 'month' },
+      { title: 'Oil change', interval: 6, unit: 'month' },
+      { title: 'Rotate the tires', interval: 6, unit: 'month' },
+      { title: 'Check the spare tire and jack', interval: 6, unit: 'month' },
+      { title: 'Test the battery', interval: 6, unit: 'month' },
+      { title: 'Replace wiper blades', interval: 12, unit: 'month' },
+      { title: 'Replace cabin air filter', interval: 12, unit: 'month' },
+      { title: 'Brake inspection', interval: 12, unit: 'month' },
+      { title: 'Full service / annual maintenance', interval: 12, unit: 'month' },
+      { title: 'Renew vehicle registration', interval: 12, unit: 'month' },
+      { title: 'Renew / review car insurance', interval: 12, unit: 'month' },
+      { title: 'Safety or emissions inspection', interval: 12, unit: 'month' },
+      { title: 'Check the emergency kit in the trunk', interval: 6, unit: 'month' },
+      { title: 'Wax / polish the paintwork', interval: 6, unit: 'month' },
+    ],
+  },
+  {
+    id: 'finances',
+    label: 'Finances',
+    items: [
+      { title: 'Review bank account activity', interval: 1, unit: 'week' },
+      { title: 'Check credit card statement', interval: 1, unit: 'month' },
+      { title: 'Update the budget', interval: 1, unit: 'month' },
+      { title: 'Review recurring subscriptions', interval: 1, unit: 'month' },
+      { title: 'Move money into savings', interval: 1, unit: 'month' },
+      { title: 'Pay bills', interval: 1, unit: 'month' },
+      { title: 'Update net worth tracker', interval: 1, unit: 'month' },
+      { title: 'Review investment accounts', interval: 3, unit: 'month' },
+      { title: 'Check credit report', interval: 4, unit: 'month' },
+      { title: 'Pay quarterly estimated taxes', interval: 3, unit: 'month' },
+      { title: 'Review and negotiate bills', interval: 6, unit: 'month' },
+      { title: 'Rebalance the portfolio', interval: 12, unit: 'month' },
+      { title: 'Review insurance policies and coverage', interval: 12, unit: 'month' },
+      { title: 'Review retirement contributions', interval: 12, unit: 'month' },
+      { title: 'File taxes', interval: 12, unit: 'month' },
+      { title: 'Check credit card annual fees and perks', interval: 12, unit: 'month' },
+      { title: 'Set financial goals for the year', interval: 12, unit: 'month' },
+      { title: 'Check for unclaimed money / old accounts', interval: 12, unit: 'month' },
+    ],
+  },
+  {
+    id: 'pets',
+    label: 'Pet care',
+    items: [
+      { title: 'Fresh water and food bowls washed', interval: 1, unit: 'day' },
+      { title: 'Walk the dog', interval: 1, unit: 'day' },
+      { title: 'Scoop the litter box', interval: 1, unit: 'day' },
+      { title: 'Brush teeth', interval: 3, unit: 'day' },
+      { title: 'Brush the coat', interval: 1, unit: 'week' },
+      { title: 'Full litter change', interval: 1, unit: 'week' },
+      { title: 'Clean the cage / tank / hutch', interval: 1, unit: 'week' },
+      { title: 'Wash the pet bed and blankets', interval: 2, unit: 'week' },
+      { title: 'Clean ears', interval: 2, unit: 'week' },
+      { title: 'Flea and tick treatment', interval: 1, unit: 'month' },
+      { title: 'Heartworm preventative', interval: 1, unit: 'month' },
+      { title: 'Trim nails', interval: 1, unit: 'month' },
+      { title: 'Reorder food and supplies', interval: 1, unit: 'month' },
+      { title: 'Weigh the pet', interval: 1, unit: 'month' },
+      { title: 'Grooming appointment', interval: 2, unit: 'month' },
+      { title: 'Deworming treatment', interval: 3, unit: 'month' },
+      { title: 'Check ID tag and microchip details', interval: 6, unit: 'month' },
+      { title: 'Annual vet checkup', interval: 12, unit: 'month' },
+      { title: 'Vaccinations due', interval: 12, unit: 'month' },
+      { title: 'Renew pet insurance', interval: 12, unit: 'month' },
+    ],
+  },
+  {
+    id: 'plants',
+    label: 'Plants & garden',
+    items: [
+      { title: 'Water the indoor plants', interval: 4, unit: 'day' },
+      { title: 'Water the garden', interval: 2, unit: 'day' },
+      { title: 'Check plants for pests', interval: 2, unit: 'week' },
+      { title: 'Deadhead and prune', interval: 2, unit: 'week' },
+      { title: 'Mow the lawn', interval: 1, unit: 'week' },
+      { title: 'Weed the beds', interval: 1, unit: 'week' },
+      { title: 'Turn the compost', interval: 1, unit: 'week' },
+      { title: 'Harvest herbs and vegetables', interval: 1, unit: 'week' },
+      { title: 'Rotate plants toward the light', interval: 2, unit: 'week' },
+      { title: 'Fertilize indoor plants', interval: 1, unit: 'month' },
+      { title: 'Dust and wipe plant leaves', interval: 1, unit: 'month' },
+      { title: 'Check the irrigation system', interval: 1, unit: 'month' },
+      { title: 'Trim hedges and shrubs', interval: 2, unit: 'month' },
+      { title: 'Fertilize the lawn', interval: 3, unit: 'month' },
+      { title: 'Repot anything root-bound', interval: 6, unit: 'month' },
+      { title: 'Refresh the mulch', interval: 6, unit: 'month' },
+      { title: 'Plant seasonal flowers', interval: 6, unit: 'month' },
+      { title: 'Clean and sharpen garden tools', interval: 6, unit: 'month' },
+      { title: 'Prep the garden for the season', interval: 6, unit: 'month' },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin & documents',
+    items: [
+      { title: 'Scan and file receipts', interval: 1, unit: 'month' },
+      { title: 'Back up computer files', interval: 1, unit: 'month' },
+      { title: 'Back up phone photos', interval: 1, unit: 'month' },
+      { title: 'Organize the desktop and downloads folder', interval: 1, unit: 'month' },
+      { title: 'Clear out the email inbox', interval: 1, unit: 'month' },
+      { title: 'Shred old documents', interval: 3, unit: 'month' },
+      { title: 'Update important passwords', interval: 6, unit: 'month' },
+      { title: 'Check passport expiry date', interval: 6, unit: 'month' },
+      { title: 'Check ID and card expiry dates', interval: 6, unit: 'month' },
+      { title: 'Review warranties and receipts for big purchases', interval: 6, unit: 'month' },
+      { title: 'Check driver licence renewal date', interval: 12, unit: 'month' },
+      { title: 'Review memberships and renewals', interval: 12, unit: 'month' },
+      { title: 'Update emergency contacts', interval: 12, unit: 'month' },
+      { title: 'Review will and beneficiaries', interval: 12, unit: 'month' },
+      { title: 'Photograph valuables for insurance', interval: 12, unit: 'month' },
+      { title: 'Update address on key accounts', interval: 12, unit: 'month' },
+      { title: 'Check important documents are stored safely', interval: 12, unit: 'month' },
+    ],
+  },
+  {
+    id: 'health',
+    label: 'Health checkups',
+    items: [
+      { title: 'Refill prescriptions', interval: 1, unit: 'month' },
+      { title: 'Check the first aid kit and expiry dates', interval: 6, unit: 'month' },
+      { title: 'Replace toothbrush / brush head', interval: 3, unit: 'month' },
+      { title: 'Dentist checkup and cleaning', interval: 6, unit: 'month' },
+      { title: 'Eye exam', interval: 12, unit: 'month' },
+      { title: 'Annual physical', interval: 12, unit: 'month' },
+      { title: 'Routine blood work', interval: 12, unit: 'month' },
+      { title: 'Skin check', interval: 12, unit: 'month' },
+      { title: 'Hearing test', interval: 24, unit: 'month' },
+      { title: 'Flu shot', interval: 12, unit: 'month' },
+      { title: 'Check vaccinations are up to date', interval: 12, unit: 'month' },
+      { title: 'Book any age-recommended screenings', interval: 12, unit: 'month' },
+      { title: 'Review medications with the doctor', interval: 12, unit: 'month' },
+      { title: 'Replace contact lenses / update glasses', interval: 12, unit: 'month' },
+      { title: 'Renew health insurance / review the plan', interval: 12, unit: 'month' },
+    ],
+  },
+  {
+    id: 'fitness',
+    label: 'Fitness',
+    items: [
+      { title: 'Go for a walk', interval: 1, unit: 'day' },
+      { title: 'Stretch', interval: 1, unit: 'day' },
+      { title: 'Strength workout', interval: 2, unit: 'day' },
+      { title: 'Cardio session', interval: 2, unit: 'day' },
+      { title: 'Core workout', interval: 3, unit: 'day' },
+      { title: 'Foam roll / mobility work', interval: 2, unit: 'day' },
+      { title: 'Take a proper rest day', interval: 1, unit: 'week' },
+      { title: 'Yoga session', interval: 1, unit: 'week' },
+      { title: 'Play a sport', interval: 1, unit: 'week' },
+      { title: 'Get outside for a longer session', interval: 1, unit: 'week' },
+      { title: 'Plan next week of training', interval: 1, unit: 'week' },
+      { title: 'Log this week of workouts', interval: 1, unit: 'week' },
+      { title: 'Check in on training progress', interval: 1, unit: 'month' },
+      { title: 'Try a new activity or class', interval: 1, unit: 'month' },
+      { title: 'Replace worn-out running shoes', interval: 6, unit: 'month' },
+    ],
+  },
+  {
+    id: 'kitchen',
+    label: 'Kitchen & food',
+    items: [
+      { title: 'Pack lunch for tomorrow', interval: 1, unit: 'day' },
+      { title: 'Plan meals for the week', interval: 1, unit: 'week' },
+      { title: 'Grocery shopping', interval: 1, unit: 'week' },
+      { title: 'Batch cook / meal prep', interval: 1, unit: 'week' },
+      { title: 'Use up the leftovers', interval: 1, unit: 'week' },
+      { title: 'Restock kitchen staples', interval: 2, unit: 'week' },
+      { title: 'Try a new recipe', interval: 2, unit: 'week' },
+      { title: 'Check pantry expiry dates', interval: 1, unit: 'month' },
+      { title: 'Take stock of the freezer', interval: 1, unit: 'month' },
+      { title: 'Reorder coffee / tea', interval: 1, unit: 'month' },
+      { title: 'Replace the water filter', interval: 2, unit: 'month' },
+      { title: 'Sharpen the kitchen knives', interval: 3, unit: 'month' },
+      { title: 'Sort and restock the spice rack', interval: 6, unit: 'month' },
+      { title: 'Donate unused pantry items', interval: 6, unit: 'month' },
+      { title: 'Review the food budget', interval: 1, unit: 'month' },
+    ],
+  },
+  {
+    id: 'relationships',
+    label: 'Relationships',
+    items: [
+      { title: 'Quality time with the kids', interval: 1, unit: 'day' },
+      { title: 'Tell someone you appreciate them', interval: 1, unit: 'day' },
+      { title: 'Call parents', interval: 1, unit: 'week' },
+      { title: 'Message or call a friend', interval: 1, unit: 'week' },
+      { title: 'Date night', interval: 1, unit: 'week' },
+      { title: 'Family dinner together', interval: 1, unit: 'week' },
+      { title: 'Phone-free evening together', interval: 1, unit: 'week' },
+      { title: 'Check in on someone having a hard time', interval: 2, unit: 'week' },
+      { title: 'Plan something with friends', interval: 1, unit: 'month' },
+      { title: 'Reconnect with someone out of touch', interval: 1, unit: 'month' },
+      { title: 'Write to a long-distance friend', interval: 1, unit: 'month' },
+      { title: 'Send a thank-you note', interval: 1, unit: 'month' },
+      { title: 'Visit family', interval: 3, unit: 'month' },
+      { title: 'Plan a trip together', interval: 6, unit: 'month' },
+      { title: 'Host friends for dinner', interval: 2, unit: 'month' },
+    ],
+  },
+  {
+    id: 'learning',
+    label: 'Learning',
+    items: [
+      { title: 'Read for 30 minutes', interval: 1, unit: 'day' },
+      { title: 'Practice a language', interval: 1, unit: 'day' },
+      { title: 'Flashcard review', interval: 1, unit: 'day' },
+      { title: 'Work through a course lesson', interval: 2, unit: 'day' },
+      { title: 'Practice an instrument or skill', interval: 2, unit: 'day' },
+      { title: 'Listen to a podcast or audiobook', interval: 2, unit: 'day' },
+      { title: 'Review this week of notes', interval: 1, unit: 'week' },
+      { title: 'Watch a lecture or documentary', interval: 1, unit: 'week' },
+      { title: 'Read industry news', interval: 1, unit: 'week' },
+      { title: 'Write up what I learned this week', interval: 1, unit: 'week' },
+      { title: 'Finish a book', interval: 1, unit: 'month' },
+      { title: 'Teach someone something I know', interval: 1, unit: 'month' },
+      { title: 'Set learning goals', interval: 1, unit: 'month' },
+      { title: 'Pick the next thing to learn', interval: 3, unit: 'month' },
+    ],
+  },
+  {
+    id: 'mind',
+    label: 'Mind',
+    items: [
+      { title: 'Meditate', interval: 1, unit: 'day' },
+      { title: 'Journal', interval: 1, unit: 'day' },
+      { title: "Write down three things I'm grateful for", interval: 1, unit: 'day' },
+      { title: 'Breathing exercise', interval: 1, unit: 'day' },
+      { title: 'Set intentions for the day', interval: 1, unit: 'day' },
+      { title: 'Spend time outdoors', interval: 1, unit: 'day' },
+      { title: 'Phone-free first hour of the morning', interval: 1, unit: 'day' },
+      { title: 'Screen-free wind-down before bed', interval: 1, unit: 'day' },
+      { title: 'Keep a consistent bedtime', interval: 1, unit: 'day' },
+      { title: 'Brain dump everything on my mind', interval: 1, unit: 'week' },
+      { title: 'Weekly reflection', interval: 1, unit: 'week' },
+      { title: 'Take a full day off from work', interval: 1, unit: 'week' },
+      { title: 'Limit news and doomscrolling', interval: 1, unit: 'day' },
+      { title: 'Celebrate a win, however small', interval: 1, unit: 'week' },
+      { title: 'Review goals and priorities', interval: 1, unit: 'month' },
+      { title: 'Digital detox day', interval: 1, unit: 'month' },
+    ],
+  },
+  {
+    id: 'occasions',
+    label: 'Birthdays & occasions',
+    items: [
+      { title: 'Check whose birthday is coming up', interval: 1, unit: 'week' },
+      { title: 'Send birthday messages', interval: 1, unit: 'week' },
+      { title: 'Buy a gift for an upcoming birthday', interval: 1, unit: 'month' },
+      { title: 'Update the birthday list', interval: 6, unit: 'month' },
+      { title: 'Keep spare cards and wrapping in stock', interval: 3, unit: 'month' },
+      { title: 'Wedding anniversary', interval: 12, unit: 'month' },
+      { title: 'Plan a gift for the anniversary', interval: 12, unit: 'month' },
+      { title: "Mother's Day", interval: 12, unit: 'month' },
+      { title: "Father's Day", interval: 12, unit: 'month' },
+      { title: "Valentine's Day", interval: 12, unit: 'month' },
+      { title: 'Start holiday gift shopping', interval: 12, unit: 'month' },
+      { title: 'Send holiday cards', interval: 12, unit: 'month' },
+      { title: 'Plan my own birthday', interval: 12, unit: 'month' },
+      { title: 'Book a table for an upcoming occasion', interval: 3, unit: 'month' },
+    ],
+  },
+]
+
+function HabitBuilder({ myId, onDone }) {
+  const [categoryId, setCategoryId] = useState('')
+  const [picked, setPicked] = useState({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const category = BUILDER_CATEGORIES.find((c) => c.id === categoryId)
+
+  function toggleItem(title, item) {
+    setPicked((prev) => {
+      const next = { ...prev }
+      if (next[title]) delete next[title]
+      else next[title] = { interval: item.interval, unit: item.unit }
+      return next
+    })
+  }
+
+  function setField(title, field, value) {
+    setPicked((prev) => ({ ...prev, [title]: { ...prev[title], [field]: value } }))
+  }
+
+  function changeCategory(id) {
+    setCategoryId(id)
+    setPicked({})
+    setErr('')
+  }
+
+  const pickedCount = Object.keys(picked).length
+
+  async function addSelected() {
+    if (pickedCount === 0) return
+    setBusy(true)
+    setErr('')
+    const due = today()
+    const rows = Object.entries(picked).map(([title, cfg]) => ({
+      title,
+      due_date: due,
+      due_time: null,
+      duration: null,
+      repeat_interval: Math.max(1, Number(cfg.interval) || 1),
+      repeat_unit: cfg.unit,
+      repeat_anchor: Number(due.slice(8, 10)),
+      reward: null,
+      user_id: myId,
+      assigned_group_id: null,
+    }))
+    const { error } = await supabase.from('tasks').insert(rows)
+    setBusy(false)
+    if (error) setErr(error.message)
+    else onDone()
+  }
+
+  return (
+    <div className="builder">
+      <p className="builder-intro">
+        Pick a category, tick the habits you want, and set how often you want to do each one.
+      </p>
+
+      <label className="builder-select-label">
+        Category
+        <select value={categoryId} onChange={(e) => changeCategory(e.target.value)}>
+          <option value="">Choose a category...</option>
+          {BUILDER_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {category && (
+        <ul className="builder-list">
+          {category.items.map((item) => {
+            const cfg = picked[item.title]
+            const on = !!cfg
+            return (
+              <li key={item.title} className={on ? 'builder-item on' : 'builder-item'}>
+                <label className="builder-check">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggleItem(item.title, item)}
+                  />
+                  <span>{item.title}</span>
+                </label>
+                {on && (
+                  <div className="builder-freq">
+                    <span>every</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={cfg.interval}
+                      onChange={(e) => setField(item.title, 'interval', e.target.value)}
+                    />
+                    <select
+                      value={cfg.unit}
+                      onChange={(e) => setField(item.title, 'unit', e.target.value)}
+                    >
+                      <option value="day">day(s)</option>
+                      <option value="week">week(s)</option>
+                      <option value="month">month(s)</option>
+                    </select>
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {err && <p className="err">{err}</p>}
+
+      {pickedCount > 0 && (
+        <div className="builder-bar">
+          <span>{pickedCount} selected</span>
+          <button onClick={addSelected} disabled={busy}>
+            {busy ? 'Adding...' : `Add to my habits`}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Habits({ tasks, taskLoading, refresh, myId, nameFor, people, groups }) {
   const [selected, setSelected] = useState(new Set())
   const [editing, setEditing] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [tab, setTab] = useState('mine')
 
   const recurring = tasks
     .filter((t) => t.repeat_unit)
@@ -1810,6 +2394,21 @@ function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
 
   const groupNameFor = (id) => (groups.find((g) => g.id === id) || {}).name
 
+  if (adding)
+    return (
+      <AddTask
+        people={people}
+        groups={groups}
+        myId={myId}
+        presetRecurring
+        onCancel={() => setAdding(false)}
+        onDone={() => {
+          setAdding(false)
+          refresh()
+        }}
+      />
+    )
+
   if (editing)
     return (
       <EditTask
@@ -1827,62 +2426,437 @@ function Recurring({ tasks, loading, refresh, myId, nameFor, people, groups }) {
 
   return (
     <div className="tdl">
-      <p className="section-title" style={{ marginBottom: '16px' }}>
-        All recurring tasks
-      </p>
-      {loading ? (
-        <p className="empty">Loading...</p>
-      ) : recurring.length === 0 ? (
-        <p className="empty">No recurring tasks yet.</p>
-      ) : (
-        <ul className="task-list">
-          {recurring.map((t) => (
-            <TaskRow
-              key={t.id}
-              task={t}
-              selected={selected.has(t.id)}
-              onSelect={toggleSelect}
-              timeless={false}
-              fromName={
-                t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
-              }
-              groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
-              onEdit={setEditing}
-            />
-          ))}
-        </ul>
-      )}
+      <div className="view-switch" style={{ marginBottom: '18px' }}>
+        <button className={tab === 'mine' ? 'active' : ''} onClick={() => setTab('mine')}>
+          My habits
+        </button>
+        <button className={tab === 'builder' ? 'active' : ''} onClick={() => setTab('builder')}>
+          Habit builder
+        </button>
+      </div>
 
-      {selected.size > 0 && (
-        <div className="delete-bar">
-          <span>{selected.size} selected</span>
-          <button onClick={deleteSelected}>Delete selected</button>
-        </div>
+      {tab === 'builder' ? (
+        <HabitBuilder
+          myId={myId}
+          onDone={() => {
+            setTab('mine')
+            refresh()
+          }}
+        />
+      ) : (
+        <>
+          {taskLoading ? (
+            <p className="empty">Loading...</p>
+          ) : recurring.length === 0 ? (
+            <p className="empty">No habits yet. Add one with the + button.</p>
+          ) : (
+            <ul className="task-list">
+              {recurring.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  selected={selected.has(t.id)}
+                  onSelect={toggleSelect}
+                  timeless={false}
+                  fromName={
+                    t.created_by && t.created_by !== myId ? nameFor(t.created_by) : null
+                  }
+                  groupName={t.assigned_group_id ? groupNameFor(t.assigned_group_id) : null}
+                  onEdit={setEditing}
+                />
+              ))}
+            </ul>
+          )}
+
+          <button className="fab" onClick={() => setAdding(true)} aria-label="Add habit">
+            +
+          </button>
+
+          {selected.size > 0 && (
+            <div className="delete-bar">
+              <span>{selected.size} selected</span>
+              <button onClick={deleteSelected}>Delete selected</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
 }
 
-/* ---------- setup screen ---------- */
-function Setup({ profile, groups, members, invites, myId, refresh }) {
+/* ---------- Goal Tracker: goals with sub-steps and a progress bar ---------- */
+function GoalTrackerScreen({ goals, goalSteps, refresh, myId }) {
+  const [openGoalId, setOpenGoalId] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [title, setTitle] = useState('')
+  const [targetDate, setTargetDate] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const mine = goals
+    .filter((g) => g.user_id === myId)
+    .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
+
+  const stepsFor = (goalId) =>
+    goalSteps
+      .filter((s) => s.goal_id === goalId)
+      .sort((a, b) => {
+        if ((a.position || 0) !== (b.position || 0)) return (a.position || 0) - (b.position || 0)
+        return (a.created_at || '').localeCompare(b.created_at || '')
+      })
+
+  async function addGoal(e) {
+    e.preventDefault()
+    const t = title.trim()
+    if (!t) return
+    setBusy(true)
+    await supabase.from('goals').insert([
+      { title: t, target_date: targetDate || null, user_id: myId },
+    ])
+    setTitle('')
+    setTargetDate('')
+    setBusy(false)
+    setAdding(false)
+    refresh()
+  }
+
+  const openGoal = mine.find((g) => g.id === openGoalId)
+  if (openGoal) {
+    return (
+      <GoalDetail
+        goal={openGoal}
+        steps={stepsFor(openGoal.id)}
+        refresh={refresh}
+        onBack={() => setOpenGoalId(null)}
+        onDeleted={() => setOpenGoalId(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="tdl">
+      {mine.length === 0 ? (
+        <p className="empty">No goals yet. Add one with the + button.</p>
+      ) : (
+        <ul className="task-list goal-list">
+          {mine.map((g) => {
+            const steps = stepsFor(g.id)
+            const done = steps.filter((s) => s.is_complete).length
+            const pct = steps.length ? Math.round((done / steps.length) * 100) : 0
+            const currentStep = steps.find((s) => !s.is_complete)
+            const currentStepLabel = currentStep
+              ? currentStep.title
+              : steps.length
+              ? 'All steps done! 🎉'
+              : 'No steps yet'
+            return (
+              <li
+                key={g.id}
+                className="task goal-card"
+                onClick={() => setOpenGoalId(g.id)}
+              >
+                <div className="task-body">
+                  <div className="goal-title-row">
+                    <span className="task-title">{g.title}</span>
+                    {g.target_date && (
+                      <>
+                        <span className="goal-sep">|</span>
+                        <span className="goal-target-inline">Target: {g.target_date}</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="goal-progress-row">
+                    <div className="goal-progress-track">
+                      <div
+                        className="goal-progress-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="goal-progress-label">
+                      {steps.length ? `${done}/${steps.length}` : 'No steps yet'}
+                    </span>
+                  </div>
+                  <span className="goal-current-step">{currentStepLabel}</span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {adding ? (
+        <form onSubmit={addGoal} className="add-item-row goal-add-form">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Goal title..."
+            autoFocus
+          />
+          <label className="goal-date-label">
+            Target date (optional)
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn-primary" disabled={busy}>
+            Add goal
+          </button>
+          <button type="button" className="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <button className="fab" onClick={() => setAdding(true)} aria-label="Add goal">
+          +
+        </button>
+      )}
+    </div>
+  )
+}
+
+function GoalDetail({ goal, steps, refresh, onBack, onDeleted }) {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const done = steps.filter((s) => s.is_complete).length
+  const pct = steps.length ? Math.round((done / steps.length) * 100) : 0
+
+  async function addStep(e) {
+    e.preventDefault()
+    const title = text.trim()
+    if (!title) return
+    setBusy(true)
+    const nextPos = steps.length ? (steps[steps.length - 1].position || 0) + 1 : 1
+    await supabase
+      .from('goal_steps')
+      .insert([{ goal_id: goal.id, title, position: nextPos }])
+    setText('')
+    setBusy(false)
+    refresh()
+  }
+
+  async function toggleStep(step) {
+    await supabase
+      .from('goal_steps')
+      .update({ is_complete: !step.is_complete })
+      .eq('id', step.id)
+    refresh()
+  }
+
+  async function removeStep(id) {
+    await supabase.from('goal_steps').delete().eq('id', id)
+    refresh()
+  }
+
+  async function moveStep(step, direction) {
+    const idx = steps.findIndex((s) => s.id === step.id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= steps.length) return
+    const other = steps[swapIdx]
+    await Promise.all([
+      supabase.from('goal_steps').update({ position: other.position || 0 }).eq('id', step.id),
+      supabase.from('goal_steps').update({ position: step.position || 0 }).eq('id', other.id),
+    ])
+    refresh()
+  }
+
+  function startEdit(step) {
+    setEditingId(step.id)
+    setEditText(step.title)
+  }
+
+  async function saveEdit() {
+    const title = editText.trim()
+    const id = editingId
+    setEditingId(null)
+    if (!title || !id) return
+    await supabase.from('goal_steps').update({ title }).eq('id', id)
+    refresh()
+  }
+
+  async function deleteThisGoal() {
+    await supabase.from('goals').delete().eq('id', goal.id)
+    refresh()
+    onDeleted()
+  }
+
+  return (
+    <div className="ideas">
+      <div className="add-head">
+        <button className="ghost" onClick={onBack}>
+          ← Back
+        </button>
+        <h2>{goal.title}</h2>
+      </div>
+
+      <div className="goal-detail-progress">
+        <div className="goal-progress-track">
+          <div className="goal-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="goal-progress-label">
+          {steps.length ? `${done}/${steps.length} steps done` : 'No steps yet'}
+        </span>
+      </div>
+      {goal.target_date && (
+        <p className="goal-target-date goal-target-date-detail">Target: {goal.target_date}</p>
+      )}
+
+      {steps.length === 0 ? (
+        <p className="empty">Break this goal into steps with the + button.</p>
+      ) : (
+        <ul className="task-list">
+          {steps.map((step, i) => (
+            <li key={step.id} className={`task ${step.is_complete ? 'idea-done' : ''}`}>
+              <span className="spine" aria-hidden="true" />
+              <label className="task-check">
+                <input
+                  type="checkbox"
+                  checked={step.is_complete}
+                  onChange={() => toggleStep(step)}
+                  aria-label={`Mark ${step.title} done`}
+                />
+                <span className="box" />
+              </label>
+              <div className="task-body">
+                {editingId === step.id ? (
+                  <input
+                    type="text"
+                    className="item-edit-input"
+                    value={editText}
+                    autoFocus
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="task-title task-title-editable"
+                    onClick={() => startEdit(step)}
+                  >
+                    {step.title}
+                  </span>
+                )}
+              </div>
+              <div className="item-actions">
+                <div className="item-reorder">
+                  <button
+                    className="item-move"
+                    onClick={() => moveStep(step, 'up')}
+                    disabled={i === 0}
+                    aria-label={`Move ${step.title} up`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="item-move"
+                    onClick={() => moveStep(step, 'down')}
+                    disabled={i === steps.length - 1}
+                    aria-label={`Move ${step.title} down`}
+                  >
+                    ▼
+                  </button>
+                </div>
+                <button
+                  className="list-remove"
+                  onClick={() => removeStep(step.id)}
+                  aria-label={`Delete ${step.title}`}
+                >
+                  ×
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={addStep} className="add-item-row goal-step-form">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add a step..."
+        />
+        <button type="submit" className="btn-primary" disabled={busy || !text.trim()}>
+          Add
+        </button>
+      </form>
+
+      <div className="list-delete-zone">
+        {confirmDelete ? (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              Delete "{goal.title}" and all its steps? This can't be undone.
+            </p>
+            <div className="invite-actions">
+              <button className="btn-danger" onClick={deleteThisGoal}>
+                Yes, delete this goal
+              </button>
+              <button className="btn-outline" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="list-delete-btn" onClick={() => setConfirmDelete(true)}>
+            Delete this goal
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- setup screen (just name / sign out / delete) ---------- */
+function Setup({ profile, myId, refresh, rewardLines, incomingRewards, friends, givenRewards }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
   const [savingName, setSavingName] = useState(false)
-  const [newGroup, setNewGroup] = useState('')
-  const [inviteEmail, setInviteEmail] = useState({})
-  const [note, setNote] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState('')
+  const [preview, setPreview] = useState(null)
+  const [previewFriendId, setPreviewFriendId] = useState('')
+
+  // Preview the clear-the-day celebration on demand, using real current
+  // data. Picks a line at random WITHOUT advancing the saved shuffle
+  // cursor, so previewing never burns through the real rotation. Can
+  // preview as myself, or as any friend (using their real streak and any
+  // rewards I've personally set for them).
+  function openPreview() {
+    const pool = rewardLines || []
+    const line = pool.length
+      ? pool[Math.floor(Math.random() * pool.length)].text
+      : null
+
+    if (!previewFriendId) {
+      setPreview({ n: (profile?.clear_streak || 0) + 1, line, rewards: incomingRewards })
+      return
+    }
+
+    const friend = (friends || []).find((f) => f.id === previewFriendId)
+    const rewards = (givenRewards || [])
+      .filter((r) => r.recipient_id === previewFriendId)
+      .map((r) => ({
+        id: r.id,
+        target_streak: r.target_streak,
+        reward_text: r.reward_text,
+        visibility: r.visibility,
+        giver_name: profile?.name || 'a friend',
+      }))
+    setPreview({ n: (friend?.streak || 0) + 1, line, rewards })
+  }
 
   async function saveName() {
     setSavingName(true)
     await supabase.from('profiles').update({ name: nameInput.trim() }).eq('id', myId)
     setSavingName(false)
-    refresh()
-  }
-
-  async function toggleIdeasVisible(show) {
-    await supabase.from('profiles').update({ ideas_hidden: !show }).eq('id', myId)
     refresh()
   }
 
@@ -1902,6 +2876,128 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
     }
     await supabase.auth.signOut()
   }
+
+  return (
+    <div className="setup">
+      <section className="setup-section">
+        <span className="section-title">Your name</span>
+        <div className="name-row">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+          />
+          <button className="btn-primary" onClick={saveName} disabled={savingName}>
+            {savingName ? '...' : 'Save'}
+          </button>
+        </div>
+      </section>
+
+      {profile?.email === 'larsnickolai@gmail.com' && (
+        <section className="setup-section">
+          <span className="section-title">Preview</span>
+          {friends && friends.length > 0 && (
+            <select
+              className="viewer-select"
+              value={previewFriendId}
+              onChange={(e) => setPreviewFriendId(e.target.value)}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <option value="">Preview as me</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  Preview as {f.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn-outline" onClick={openPreview}>
+            Show celebration screen
+          </button>
+          <span className="hint">
+            Shows what you'll see when you clear your day - safe to open any time,
+            it doesn't change your streak or use up a message.
+          </span>
+        </section>
+      )}
+
+      <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
+        Sign out
+      </button>
+
+      <section className="setup-section danger">
+        {!confirmDelete ? (
+          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
+            Delete account
+          </button>
+        ) : (
+          <div className="delete-confirm">
+            <p className="setup-note">
+              This permanently deletes your account and all your tasks, lists, and
+              groups you own. This can't be undone.
+            </p>
+            {deleteErr && <p className="auth-msg">{deleteErr}</p>}
+            <div className="invite-actions">
+              <button
+                className="btn-danger"
+                onClick={deleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete everything'}
+              </button>
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  setConfirmDelete(false)
+                  setDeleteErr('')
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {preview && (
+        <StreakBurst
+          n={preview.n}
+          line={preview.line}
+          rewards={preview.rewards}
+          onEnd={() => setPreview(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ---------- social screen: Groups + Friends subtabs ---------- */
+function Social({
+  groups,
+  members,
+  invites,
+  myId,
+  refresh,
+  friends,
+  friendInvites,
+  givenRewards,
+  incomingRewards,
+}) {
+  const [tab, setTab] = useState('friends')
+  const [newGroup, setNewGroup] = useState('')
+  const [inviteEmail, setInviteEmail] = useState({})
+  const [note, setNote] = useState('')
+  const [friendEmail, setFriendEmail] = useState('')
+  const [friendNote, setFriendNote] = useState('')
+  const [rewardStreak, setRewardStreak] = useState(7)
+  const [rewardText, setRewardText] = useState('')
+  const [rewardVisibility, setRewardVisibility] = useState('secret')
+  const [expandedGroupId, setExpandedGroupId] = useState(null)
+  const [selectedFriendId, setSelectedFriendId] = useState(null)
+  const [confirmRemoveFriend, setConfirmRemoveFriend] = useState(false)
+  const [creatingReward, setCreatingReward] = useState(false)
 
   async function createGroup(e) {
     e.preventDefault()
@@ -1952,7 +3048,6 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
 
   const membersOf = (gid) => members.filter((m) => m.group_id === gid)
   const myRowIn = (gid) => members.find((m) => m.group_id === gid && m.user_id === myId)
-  const [expandedGroupId, setExpandedGroupId] = useState(null)
 
   async function toggleShareTasks(gid, next) {
     await supabase
@@ -1963,176 +3058,431 @@ function Setup({ profile, groups, members, invites, myId, refresh }) {
     refresh()
   }
 
+  async function inviteFriend(e) {
+    e.preventDefault()
+    const mail = friendEmail.trim().toLowerCase()
+    if (!mail) return
+    const { error } = await supabase.from('friend_invites').insert([
+      { invited_email: mail },
+    ])
+    setFriendEmail('')
+    setFriendNote(error ? error.message : `Invite sent to ${mail}`)
+    setTimeout(() => setFriendNote(''), 2500)
+  }
+
+  async function acceptFriendInvite(invite) {
+    await supabase
+      .from('friendships')
+      .insert([{ user_a: invite.invited_by, user_b: myId }])
+    await supabase
+      .from('friend_invites')
+      .update({ status: 'accepted' })
+      .eq('id', invite.id)
+    refresh()
+  }
+
+  async function declineFriendInvite(invite) {
+    await supabase
+      .from('friend_invites')
+      .update({ status: 'declined' })
+      .eq('id', invite.id)
+    refresh()
+  }
+
+  async function removeFriend(friendshipId) {
+    await supabase.from('friendships').delete().eq('id', friendshipId)
+    setSelectedFriendId(null)
+    setConfirmRemoveFriend(false)
+    refresh()
+  }
+
+  async function createReward(e) {
+    e.preventDefault()
+    const text = rewardText.trim()
+    if (!selectedFriendId || !text || !rewardStreak) return
+    await supabase.from('streak_rewards').insert([
+      {
+        recipient_id: selectedFriendId,
+        target_streak: Math.max(1, Number(rewardStreak) || 1),
+        reward_text: text,
+        visibility: rewardVisibility,
+      },
+    ])
+    setRewardText('')
+    setRewardStreak(7)
+    setRewardVisibility('secret')
+    setCreatingReward(false)
+    refresh()
+  }
+
+  async function deleteReward(id) {
+    await supabase.from('streak_rewards').delete().eq('id', id)
+    refresh()
+  }
+
+  const selectedFriend = selectedFriendId
+    ? friends.find((f) => f.id === selectedFriendId)
+    : null
+  const myRewardsForFriend = selectedFriendId
+    ? givenRewards.filter((r) => r.recipient_id === selectedFriendId)
+    : []
+  const friendRewardsForMe = selectedFriendId
+    ? incomingRewards.filter((r) => r.giver_id === selectedFriendId)
+    : []
+
+  if (creatingReward && selectedFriend)
+    return (
+      <div className="add-screen">
+        <div className="add-head">
+          <button className="ghost" onClick={() => setCreatingReward(false)}>
+            ← Back
+          </button>
+          <h2>New reward for {selectedFriend.name}</h2>
+        </div>
+
+        <form onSubmit={createReward} className="add-form">
+          <div className="reward-form-row">
+            <span>At</span>
+            <input
+              type="number"
+              min="1"
+              className="repeat-num"
+              value={rewardStreak}
+              onChange={(e) => setRewardStreak(e.target.value)}
+            />
+            <span>day streak, give</span>
+          </div>
+          <label>
+            Reward
+            <input
+              type="text"
+              placeholder="What's the reward?"
+              value={rewardText}
+              onChange={(e) => setRewardText(e.target.value)}
+              autoFocus
+              required
+            />
+          </label>
+          <div className="prio-picker">
+            {[
+              { value: 'secret', label: 'Secret' },
+              { value: 'semi', label: 'Semi-secret' },
+              { value: 'visible', label: 'Visible' },
+            ].map((v) => (
+              <button
+                type="button"
+                key={v.value}
+                className={rewardVisibility === v.value ? 'active' : ''}
+                onClick={() => setRewardVisibility(v.value)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <span className="hint">
+            {rewardVisibility === 'secret'
+              ? "They won't know this reward exists at all"
+              : rewardVisibility === 'semi'
+              ? "Shows a countdown but not the reward"
+              : "Shows the countdown and what the reward is."}
+          </span>
+          <div className="add-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setCreatingReward(false)}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Set reward
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+
   return (
     <div className="setup">
-      <h2>Setup</h2>
+      <div className="view-switch" style={{ marginBottom: '22px' }}>
+        <button className={tab === 'friends' ? 'active' : ''} onClick={() => setTab('friends')}>
+          Friends
+        </button>
+        <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>
+          Groups
+        </button>
+      </div>
 
-      <section className="setup-section">
-        <span className="section-title">Your name</span>
-        <div className="name-row">
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
-          />
-          <button className="btn-primary" onClick={saveName} disabled={savingName}>
-            {savingName ? '...' : 'Save'}
-          </button>
-        </div>
-      </section>
-
-      {invites.length > 0 && (
-        <section className="setup-section">
-          <span className="section-title">Invites</span>
-          {invites.map((inv) => (
-            <div key={inv.id} className="invite-card">
-              <span>
-                Join <strong>{inv.group_name}</strong>
-              </span>
-              <div className="invite-actions">
-                <button className="btn-primary" onClick={() => acceptInvite(inv)}>
-                  Accept
-                </button>
-                <button className="btn-outline" onClick={() => declineInvite(inv)}>
-                  Decline
-                </button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
-      <section className="setup-section">
-        <span className="section-title">Lists</span>
-        <label className="switch-row">
-          <input
-            type="checkbox"
-            checked={!profile?.ideas_hidden}
-            onChange={(e) => toggleIdeasVisible(e.target.checked)}
-          />
-          <span>Show the Ideas tab</span>
-        </label>
-      </section>
-
-      <section className="setup-section">
-        <span className="section-title">Groups</span>
-        {groups.length === 0 && (
-          <p className="setup-note">No groups yet. Create one below.</p>
-        )}
-        {groups.map((g) => {
-          const owner = g.owner_id === myId
-          const open = expandedGroupId === g.id
-          return (
-            <div key={g.id} className={`group-card${open ? ' open' : ''}`}>
-              <button
-                className="group-head group-head-btn"
-                onClick={() => setExpandedGroupId(open ? null : g.id)}
-                aria-expanded={open}
-              >
-                <span className="group-head-left">
-                  <strong>{g.name}</strong>
-                  <span className={owner ? 'owner-tag' : 'member-tag'}>
-                    {owner ? 'owner' : 'member'}
+      {tab === 'groups' ? (
+        <>
+          {invites.length > 0 && (
+            <section className="setup-section">
+              <span className="section-title">Invites</span>
+              {invites.map((inv) => (
+                <div key={inv.id} className="invite-card">
+                  <span>
+                    Join <strong>{inv.group_name}</strong>
                   </span>
-                </span>
-                <span className="group-caret">{open ? '▾' : '▸'}</span>
-              </button>
-              {open && (
-                <div className="group-body">
-                  <div className="member-chips">
-                    {membersOf(g.id).map((m) => (
-                      <span key={m.user_id} className="chip">
-                        {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
-                      </span>
-                    ))}
+                  <div className="invite-actions">
+                    <button className="btn-primary" onClick={() => acceptInvite(inv)}>
+                      Accept
+                    </button>
+                    <button className="btn-outline" onClick={() => declineInvite(inv)}>
+                      Decline
+                    </button>
                   </div>
-                  <label className="switch-row share-row">
-                    <input
-                      type="checkbox"
-                      checked={!!myRowIn(g.id)?.share_tasks}
-                      onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
-                    />
-                    <span>Let this group view my tasks and lists (read-only)</span>
-                  </label>
-                  {owner && (
-                    <div className="invite-row">
-                      <input
-                        type="email"
-                        placeholder="Invite by email"
-                        value={inviteEmail[g.id] || ''}
-                        onChange={(e) =>
-                          setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
-                        }
-                      />
-                      <button className="btn-outline" onClick={() => sendInvite(g)}>
-                        Invite
-                      </button>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="setup-section">
+            {groups.length === 0 && (
+              <p className="setup-note">No groups yet. Create one below.</p>
+            )}
+            {groups.map((g) => {
+              const owner = g.owner_id === myId
+              const open = expandedGroupId === g.id
+              return (
+                <div key={g.id} className={`group-card${open ? ' open' : ''}`}>
+                  <button
+                    className="group-head group-head-btn"
+                    onClick={() => setExpandedGroupId(open ? null : g.id)}
+                    aria-expanded={open}
+                  >
+                    <span className="group-head-left">
+                      <strong>{g.name}</strong>
+                      <span className={owner ? 'owner-tag' : 'member-tag'}>
+                        {owner ? 'owner' : 'member'}
+                      </span>
+                    </span>
+                    <span className="group-caret">{open ? '▾' : '▸'}</span>
+                  </button>
+                  {open && (
+                    <div className="group-body">
+                      <div className="member-chips">
+                        {membersOf(g.id).map((m) => (
+                          <span key={m.user_id} className="chip">
+                            {m.user_id === myId ? 'You' : m.name || m.user_id.slice(0, 6)}
+                          </span>
+                        ))}
+                      </div>
+                      <label className="switch-row share-row">
+                        <input
+                          type="checkbox"
+                          checked={!!myRowIn(g.id)?.share_tasks}
+                          onChange={(e) => toggleShareTasks(g.id, e.target.checked)}
+                        />
+                        <span>Let this group view my tasks and lists (read-only)</span>
+                      </label>
+                      {owner && (
+                        <div className="invite-row">
+                          <input
+                            type="email"
+                            placeholder="Invite by email"
+                            value={inviteEmail[g.id] || ''}
+                            onChange={(e) =>
+                              setInviteEmail({ ...inviteEmail, [g.id]: e.target.value })
+                            }
+                          />
+                          <button className="btn-outline" onClick={() => sendInvite(g)}>
+                            Invite
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+              )
+            })}
+
+            <form onSubmit={createGroup} className="new-group-row">
+              <input
+                type="text"
+                placeholder="New group name"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+              />
+              <button type="submit" className="btn-primary">
+                Create
+              </button>
+            </form>
+            {note && <p className="setup-note">{note}</p>}
+          </section>
+        </>
+      ) : (
+        <>
+          {selectedFriend ? (
+            <section className="setup-section">
+              <button className="ghost friend-back" onClick={() => setSelectedFriendId(null)}>
+                ← Back
+              </button>
+              <div className="friend-name-row">
+                <h3 className="friend-detail-name">{selectedFriend.name}</h3>
+                <button
+                  className="reward-add-btn"
+                  onClick={() => setCreatingReward(true)}
+                  aria-label="Add a reward"
+                >
+                  +
+                </button>
+              </div>
+
+              <span className="section-title">Your rewards for {selectedFriend.name}</span>
+
+              {myRewardsForFriend.length === 0 && (
+                <p className="setup-note">No rewards set yet.</p>
               )}
-            </div>
-          )
-        })}
 
-        <form onSubmit={createGroup} className="new-group-row">
-          <input
-            type="text"
-            placeholder="New group name"
-            value={newGroup}
-            onChange={(e) => setNewGroup(e.target.value)}
-          />
-          <button type="submit" className="btn-primary">
-            Create
-          </button>
-        </form>
-        {note && <p className="setup-note">{note}</p>}
-      </section>
+              {myRewardsForFriend.map((r) => (
+                <div key={r.id} className="reward-card given">
+                  <div className="reward-given-top">
+                    <span>At {r.target_streak}-day streak</span>
+                    <button
+                      className="list-remove"
+                      onClick={() => deleteReward(r.id)}
+                      aria-label="Delete reward"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <span className="reward-given-detail">
+                    {r.current_streak}/{r.target_streak} days
+                    {r.reached ? ' reached!' : ''} ·{' '}
+                    {r.visibility === 'secret'
+                      ? 'secret'
+                      : r.visibility === 'semi'
+                      ? 'semi-secret'
+                      : 'visible'}{' '}
+                    · {r.reward_text}
+                  </span>
+                </div>
+              ))}
 
-      <button className="btn-outline signout" onClick={() => { try { localStorage.removeItem(CACHE_KEY) } catch { /* ignore */ } supabase.auth.signOut() }}>
-        Sign out
-      </button>
 
-      <section className="setup-section danger">
-        <span className="section-title">Account</span>
-        {!confirmDelete ? (
-          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
-            Delete account
-          </button>
-        ) : (
-          <div className="delete-confirm">
-            <p className="setup-note">
-              This permanently deletes your account and all your tasks, ideas, and
-              groups you own. This can't be undone.
-            </p>
-            {deleteErr && <p className="auth-msg">{deleteErr}</p>}
-            <div className="invite-actions">
-              <button
-                className="btn-danger"
-                onClick={deleteAccount}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Yes, delete everything'}
-              </button>
-              <button
-                className="btn-outline"
-                onClick={() => {
-                  setConfirmDelete(false)
-                  setDeleteErr('')
-                }}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+              {friendRewardsForMe.length > 0 && (
+                <>
+                  <span className="section-title">{selectedFriend.name}'s rewards for you</span>
+                  {friendRewardsForMe.map((r) => (
+                    <div key={r.id} className="reward-card">
+                      {r.reached ? (
+                        r.visibility === 'visible' ? (
+                          <span>
+                            🎁 You earned <strong>{r.reward_text}</strong> from{' '}
+                            {selectedFriend.name}!
+                          </span>
+                        ) : (
+                          <span>🎁 You earned a reward from {selectedFriend.name}!</span>
+                        )
+                      ) : r.visibility === 'visible' ? (
+                        <span>
+                          {r.days_remaining} more day
+                          {r.days_remaining === 1 ? '' : 's'} to receive{' '}
+                          <strong>{r.reward_text}</strong> from {selectedFriend.name}
+                        </span>
+                      ) : (
+                        <span>
+                          {r.days_remaining} more day
+                          {r.days_remaining === 1 ? '' : 's'} to get a reward from{' '}
+                          {selectedFriend.name}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <div className="list-delete-zone">
+                {confirmRemoveFriend ? (
+                  <div className="delete-confirm">
+                    <p className="setup-note">
+                      Remove {selectedFriend.name} as a friend?
+                    </p>
+                    <div className="invite-actions">
+                      <button
+                        className="btn-danger"
+                        onClick={() =>
+                          removeFriend(selectedFriend.friendshipId || selectedFriend.id)
+                        }
+                      >
+                        Yes, remove
+                      </button>
+                      <button
+                        className="btn-outline"
+                        onClick={() => setConfirmRemoveFriend(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="list-delete-btn"
+                    onClick={() => setConfirmRemoveFriend(true)}
+                  >
+                    Remove friend
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className="setup-section">
+              {friendInvites.length > 0 && (
+                <div className="friend-invites">
+                  {friendInvites.map((inv) => (
+                    <div key={inv.id} className="invite-card">
+                      <span>Friend request pending</span>
+                      <div className="invite-actions">
+                        <button className="btn-primary" onClick={() => acceptFriendInvite(inv)}>
+                          Accept
+                        </button>
+                        <button className="btn-outline" onClick={() => declineFriendInvite(inv)}>
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {friends.length === 0 ? (
+                <p className="setup-note">No friends yet. Invite someone below.</p>
+              ) : (
+                <div className="friend-list">
+                  {friends.map((f) => (
+                    <button
+                      key={f.id}
+                      className="friend-btn"
+                      onClick={() => setSelectedFriendId(f.id)}
+                    >
+                      <span>{f.name}</span>
+                      <span className="friend-btn-streak">🔥 {f.streak}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={inviteFriend} className="invite-row">
+                <input
+                  type="email"
+                  placeholder="Invite by email"
+                  value={friendEmail}
+                  onChange={(e) => setFriendEmail(e.target.value)}
+                />
+                <button type="submit" className="btn-outline">
+                  Invite
+                </button>
+              </form>
+              {friendNote && <p className="setup-note">{friendNote}</p>}
+            </section>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
+/* ---------- Setup screen wrapper: Settings + Habits subtabs ---------- */
 /* ---------- local cache so the app paints instantly on open ---------- */
 const CACHE_KEY = 'tdl_cache_v1'
 function loadCache(uid) {
@@ -2160,14 +3510,22 @@ function Shell({ session }) {
   const cached = useRef(loadCache(myId)).current
 
   const [screen, setScreen] = useState('tdl')
+  const [setupMenuOpen, setSetupMenuOpen] = useState(false)
+  const setupMenuRef = useRef(null)
   const [tasks, setTasks] = useState(cached?.tasks || [])
-  const [ideas, setIdeas] = useState(cached?.ideas || [])
   const [lists, setLists] = useState(cached?.lists || [])
   const [listItems, setListItems] = useState(cached?.listItems || [])
+  const [goals, setGoals] = useState(cached?.goals || [])
+  const [goalSteps, setGoalSteps] = useState(cached?.goalSteps || [])
+  const [rewardLines, setRewardLines] = useState(cached?.rewardLines || [])
   const [profile, setProfile] = useState(cached?.profile || null)
   const [groups, setGroups] = useState(cached?.groups || [])
   const [members, setMembers] = useState(cached?.members || [])
   const [invites, setInvites] = useState(cached?.invites || [])
+  const [friends, setFriends] = useState(cached?.friends || [])
+  const [friendInvites, setFriendInvites] = useState(cached?.friendInvites || [])
+  const [givenRewards, setGivenRewards] = useState(cached?.givenRewards || [])
+  const [incomingRewards, setIncomingRewards] = useState(cached?.incomingRewards || [])
   // only block the UI when we have nothing at all to show
   const [loading, setLoading] = useState(!cached)
   const rolledRef = useRef(false)
@@ -2219,28 +3577,55 @@ function Shell({ session }) {
     lastFetchRef.current = Date.now()
 
     // Fire every read at once instead of waiting for them in sequence.
-    const [profRes, taskRes, ideaRes, groupRes, memberRes, inviteRes, listRes, listItemRes] =
-      await Promise.all([
-        supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
-        supabase.from('tasks').select('*'),
-        supabase.from('ideas').select('*'),
-        supabase.from('groups').select('*'),
-        supabase.from('group_members').select('*'),
-        supabase.from('group_invites').select('*').eq('status', 'pending'),
-        supabase.from('lists').select('*'),
-        supabase.from('list_items').select('*'),
-      ])
+    const [
+      profRes,
+      taskRes,
+      groupRes,
+      memberRes,
+      inviteRes,
+      listRes,
+      listItemRes,
+      goalRes,
+      goalStepRes,
+      rewardRes,
+      friendshipRes,
+      friendInviteRes,
+      givenRewardRes,
+      incomingRewardRes,
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', myId).maybeSingle(),
+      supabase.from('tasks').select('*'),
+      supabase.from('groups').select('*'),
+      supabase.from('group_members').select('*'),
+      supabase.from('group_invites').select('*').eq('status', 'pending'),
+      supabase.from('lists').select('*'),
+      supabase.from('list_items').select('*'),
+      supabase.from('goals').select('*'),
+      supabase.from('goal_steps').select('*'),
+      supabase.from('reward_lines').select('*'),
+      supabase.from('friendships').select('*'),
+      supabase.from('friend_invites').select('*').eq('status', 'pending'),
+      supabase.rpc('my_given_rewards'),
+      supabase.rpc('my_incoming_rewards'),
+    ])
 
     let prof = profRes.data
     let taskData = taskRes.data || []
 
     // paint what we have right away; the rest is cheap follow-up work
     setTasks(taskData)
-    setIdeas(ideaRes.data || [])
     setLists(listRes.data || [])
     setListItems(listItemRes.data || [])
+    setGoals(goalRes.data || [])
+    setGoalSteps(goalStepRes.data || [])
+    setRewardLines(rewardRes.data || [])
     setGroups(groupRes.data || [])
     setInvites((inviteRes.data || []).filter((i) => i.invited_email === myEmail))
+    setFriendInvites(
+      (friendInviteRes.data || []).filter((i) => i.invited_email === myEmail)
+    )
+    setGivenRewards(givenRewardRes.data || [])
+    setIncomingRewards(incomingRewardRes.data || [])
     if (prof) setProfile(prof)
     setLoading(false)
 
@@ -2277,6 +3662,30 @@ function Shell({ session }) {
     }
     setMembers(membersWithNames)
 
+    // resolve friend names (are_friends now permits reading their profile)
+    const friendshipData = friendshipRes.data || []
+    const friendPairs = friendshipData.map((f) => ({
+      friendshipId: f.id,
+      userId: f.user_a === myId ? f.user_b : f.user_a,
+    }))
+    const friendIds = friendPairs.map((f) => f.userId)
+    let friendsWithNames = []
+    if (friendIds.length) {
+      const { data: fprofs } = await supabase
+        .from('profiles')
+        .select('id,name,email,clear_streak')
+        .in('id', friendIds)
+      const fmap = {}
+      ;(fprofs || []).forEach((x) => (fmap[x.id] = x))
+      friendsWithNames = friendPairs.map((f) => ({
+        id: f.userId,
+        friendshipId: f.friendshipId,
+        name: fmap[f.userId]?.name || 'Friend',
+        streak: fmap[f.userId]?.clear_streak || 0,
+      }))
+    }
+    setFriends(friendsWithNames)
+
     // roll any missed recurring occurrences forward (once per app session).
     // Scoped to tasks I can actually write to - shared-in tasks from
     // someone else roll forward under their own session, not mine.
@@ -2293,26 +3702,59 @@ function Shell({ session }) {
       }
     }
 
-    // daily clear-streak resets if a prior day was left uncleared
-    // (scoped to my own + group tasks - tasks shared into view from
-    // someone else shouldn't affect my personal streak)
+    // Streak-token mechanic: catch up on any fully-missed calendar days
+    // since we last checked. streak_checked_through marks the last date
+    // whose status (cleared or missed) has already been applied - it's
+    // separate from clear_last (which only means "the day the list was
+    // actually cleared") so this never re-penalizes the same gap twice.
     const t0 = today()
-    const myScopedTasks = taskData.filter((t) => t.user_id === myId || t.assigned_group_id)
-    const hasOverdue = myScopedTasks.some((t) => t.due_date && t.due_date < t0)
-    if (prof && hasOverdue && prof.clear_streak > 0 && prof.clear_last !== t0) {
-      await supabase.from('profiles').update({ clear_streak: 0 }).eq('id', myId)
-      prof = { ...prof, clear_streak: 0 }
+    const checkedThrough = prof?.streak_checked_through || prof?.clear_last || null
+    const yesterday = shiftDays(t0, -1)
+    if (prof && checkedThrough && checkedThrough < yesterday) {
+      const missedDays = daysBetween(checkedThrough, t0) - 1
+      let streak = prof.clear_streak || 0
+      let tokens = prof.streak_tokens || 0
+      // token_progress is untouched here on purpose - it only ever
+      // advances on a cleared day, and simply pauses on a missed one
+      for (let i = 0; i < missedDays; i++) {
+        if (tokens > 0) {
+          tokens -= 1
+          streak = Math.max(streak - 1, 0)
+        } else {
+          streak = 0
+        }
+      }
+      await supabase
+        .from('profiles')
+        .update({
+          clear_streak: streak,
+          streak_tokens: tokens,
+          streak_checked_through: yesterday,
+        })
+        .eq('id', myId)
+      prof = {
+        ...prof,
+        clear_streak: streak,
+        streak_tokens: tokens,
+        streak_checked_through: yesterday,
+      }
       setProfile(prof)
     }
 
     saveCache(myId, {
       tasks: taskData,
-      ideas: ideaRes.data || [],
       lists: listRes.data || [],
       listItems: listItemRes.data || [],
+      goals: goalRes.data || [],
+      goalSteps: goalStepRes.data || [],
+      rewardLines: rewardRes.data || [],
       groups: groupRes.data || [],
       members: membersWithNames,
       invites: (inviteRes.data || []).filter((i) => i.invited_email === myEmail),
+      friends: friendsWithNames,
+      friendInvites: (friendInviteRes.data || []).filter((i) => i.invited_email === myEmail),
+      givenRewards: givenRewardRes.data || [],
+      incomingRewards: incomingRewardRes.data || [],
       profile: prof,
     })
   }, [myId, myEmail, rollRecurring])
@@ -2332,6 +3774,18 @@ function Shell({ session }) {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refresh])
+
+  // close the Setup dropdown when clicking anywhere outside it
+  useEffect(() => {
+    if (!setupMenuOpen) return
+    const onClick = (e) => {
+      if (setupMenuRef.current && !setupMenuRef.current.contains(e.target)) {
+        setSetupMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [setupMenuOpen])
 
   const peopleMap = {}
   peopleMap[myId] = { id: myId, name: profile?.name || 'Me' }
@@ -2354,34 +3808,66 @@ function Shell({ session }) {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand small">
-          <span className="brand-mark">/</span>list
-        </div>
+        <BrandLockup small showSub hideMark />
         <nav className="screen-tabs">
           <button
-            className={screen === 'tdl' ? 'active' : ''}
+            className={screen === 'tdl' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('tdl')}
+            aria-label="Today"
           >
-            TDL
+            <img src={navTodayIconImg} alt="" className="nav-icon-img" />
           </button>
           <button
-            className={screen === 'recurring' ? 'active' : ''}
-            onClick={() => setScreen('recurring')}
-          >
-            Recurring
-          </button>
-          <button
-            className={screen === 'ideas' ? 'active' : ''}
+            className={screen === 'ideas' ? 'active nav-icon-btn' : 'nav-icon-btn'}
             onClick={() => setScreen('ideas')}
+            aria-label="Lists"
           >
-            Lists
+            <img src={navListsIconImg} alt="" className="nav-icon-img" />
           </button>
           <button
-            className={screen === 'setup' ? 'active' : ''}
-            onClick={() => setScreen('setup')}
+            className={screen === 'social' ? 'active nav-icon-btn' : 'nav-icon-btn'}
+            onClick={() => setScreen('social')}
+            aria-label="Social"
           >
-            Setup
+            <img src={navSocialIconImg} alt="" className="nav-icon-img" />
           </button>
+          <div className="nav-dropdown" ref={setupMenuRef}>
+            <button
+              className={`nav-gear-btn nav-icon-btn${screen === 'setup' || screen === 'habits' || screen === 'goals' ? ' active' : ''}`}
+              onClick={() => setSetupMenuOpen((o) => !o)}
+              aria-label="Setup menu"
+            >
+              <img src={navSettingsIconImg} alt="" className="nav-icon-img" />
+            </button>
+            {setupMenuOpen && (
+              <div className="nav-dropdown-menu">
+                <button
+                  onClick={() => {
+                    setScreen('setup')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Account
+                </button>
+                <button
+                  onClick={() => {
+                    setScreen('habits')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Habits
+                </button>
+                <button
+                  onClick={() => {
+                    setScreen('goals')
+                    setSetupMenuOpen(false)
+                  }}
+                >
+                  Goal Tracker
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
       </header>
 
@@ -2397,12 +3883,47 @@ function Shell({ session }) {
             nameFor={nameFor}
             profile={profile}
             viewablePeople={viewablePeople}
+            rewardLines={rewardLines}
+            incomingRewards={incomingRewards}
           />
         )}
-        {screen === 'recurring' && (
-          <Recurring
+        {screen === 'ideas' && (
+          <ListsScreen
+            lists={lists}
+            listItems={listItems}
+            refresh={refresh}
+            myId={myId}
+            viewablePeople={viewablePeople}
+          />
+        )}
+        {screen === 'social' && (
+          <Social
+            groups={groups}
+            members={members}
+            invites={invites}
+            myId={myId}
+            refresh={refresh}
+            friends={friends}
+            friendInvites={friendInvites}
+            givenRewards={givenRewards}
+            incomingRewards={incomingRewards}
+          />
+        )}
+        {screen === 'setup' && (
+          <Setup
+            profile={profile}
+            myId={myId}
+            refresh={refresh}
+            rewardLines={rewardLines}
+            incomingRewards={incomingRewards}
+            friends={friends}
+            givenRewards={givenRewards}
+          />
+        )}
+        {screen === 'habits' && (
+          <Habits
             tasks={tasks}
-            loading={loading}
+            taskLoading={loading}
             refresh={refresh}
             myId={myId}
             nameFor={nameFor}
@@ -2410,28 +3931,12 @@ function Shell({ session }) {
             groups={groups}
           />
         )}
-        {screen === 'ideas' && (
-          <ListsScreen
-            ideas={ideas}
-            lists={lists}
-            listItems={listItems}
-            loading={loading}
+        {screen === 'goals' && (
+          <GoalTrackerScreen
+            goals={goals}
+            goalSteps={goalSteps}
             refresh={refresh}
-            groups={groups}
             myId={myId}
-            nameFor={nameFor}
-            profile={profile}
-            viewablePeople={viewablePeople}
-          />
-        )}
-        {screen === 'setup' && (
-          <Setup
-            profile={profile}
-            groups={groups}
-            members={members}
-            invites={invites}
-            myId={myId}
-            refresh={refresh}
           />
         )}
       </main>
