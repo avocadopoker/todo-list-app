@@ -1320,6 +1320,14 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
         })
         .eq('id', myId)
       const line = await pickAndAdvanceReward(profile, rewardLines, myId)
+      // mark any reward this streak has now reached as delivered, so it
+      // stops showing up on every future celebration. The RPC itself only
+      // takes effect once (delivered_at is null guard), so it's safe to
+      // call for every reward reached so far, not just ones reached today.
+      const justReached = (incomingRewards || []).filter((r) => r.target_streak <= newStreak)
+      await Promise.all(
+        justReached.map((r) => supabase.rpc('mark_reward_delivered', { reward_id: r.id }))
+      )
       setBurstLine(line)
       setBurst(newStreak)
     }
