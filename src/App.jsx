@@ -1216,6 +1216,7 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
   const [lastClearWasCelebration, setLastClearWasCelebration] = useState(false)
   const [flamethrowerPositions, setFlamethrowerPositions] = useState([])
   const [burnJustPressed, setBurnJustPressed] = useState(false)
+  const burningRef = useRef(false)
   const [viewingUserId, setViewingUserId] = useState(null) // null = viewing myself
 
   const readOnly = viewingUserId !== null
@@ -1237,9 +1238,24 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
   // Mark selected tasks Done: habits advance their streak to the next
   // occurrence (+1); missed-independent one-offs are simply removed.
+  // burningRef is a re-entrancy guard: this function is async and the burn
+  // button stays on screen through its press animation, so without it a
+  // second tap re-runs the whole thing against the same stale `selected`
+  // set and inserts duplicate next-occurrences.
   async function doneSelected() {
+    if (burningRef.current) return
+    burningRef.current = true
+    try {
+      await runDoneSelected()
+    } finally {
+      burningRef.current = false
+    }
+  }
+
+  async function runDoneSelected() {
     const t0 = today()
     const chosen = scopedTasks.filter((t) => selected.has(t.id))
+    if (!chosen.length) return
 
     // required Today items (dated <= today) that are NOT being cleared now
     const requiredToday = scopedTasks.filter((t) => t.due_date && t.due_date <= t0)
@@ -1512,7 +1528,12 @@ function Tdl({ tasks, loading, refresh, people, groups, myId, nameFor, profile, 
 
       {!readOnly && (selected.size > 0 || burnJustPressed) && (
         <div className="burn-btn-wrap">
-          <button className="burn-btn" onClick={doneSelected} aria-label="Burn these tasks">
+          <button
+            className="burn-btn"
+            onClick={doneSelected}
+            disabled={burnJustPressed}
+            aria-label="Burn these tasks"
+          >
             <img
               src={burnJustPressed ? burnButtonPressedImg : burnButtonSquirrelImg}
               alt=""
@@ -3556,22 +3577,35 @@ function Shell({ session }) {
       const anchor = t.repeat_anchor || Number(t.due_date.slice(8, 10))
       const next = slotOnOrAfter(t.due_date, t.repeat_interval, t.repeat_unit, anchor, t0)
       const habit = isHabit(t)
-      await supabase.from('tasks').insert([
-        {
-          title: t.title,
-          due_date: next,
-          due_time: t.due_time,
-          duration: t.duration,
-          repeat_interval: t.repeat_interval,
-          repeat_unit: t.repeat_unit,
-          repeat_anchor: anchor,
-          streak: habit ? 0 : null,
-          reward: t.reward,
-          user_id: t.user_id,
-          assigned_group_id: t.assigned_group_id,
-          created_by: t.created_by,
-        },
-      ])
+      // Don't create an occurrence that already exists. Another device (or
+      // an earlier run that inserted but failed before stripping the old
+      // row) may already have rolled this one forward.
+      const { data: existing } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('title', t.title)
+        .eq('due_date', next)
+        .eq('user_id', t.user_id)
+        .not('repeat_unit', 'is', null)
+        .limit(1)
+      if (!existing || existing.length === 0) {
+        await supabase.from('tasks').insert([
+          {
+            title: t.title,
+            due_date: next,
+            due_time: t.due_time,
+            duration: t.duration,
+            repeat_interval: t.repeat_interval,
+            repeat_unit: t.repeat_unit,
+            repeat_anchor: anchor,
+            streak: habit ? 0 : null,
+            reward: t.reward,
+            user_id: t.user_id,
+            assigned_group_id: t.assigned_group_id,
+            created_by: t.created_by,
+          },
+        ])
+      }
       // current occurrence hands off the baton and becomes a plain task
       await supabase
         .from('tasks')
